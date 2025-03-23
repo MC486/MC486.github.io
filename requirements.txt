@@ -1,0 +1,11 @@
+# requirements.txt
+# List of required Python packages for project dependencies.
+
+nltk
+wordfreq
+pygtrie
+numpy
+pandas
+tqdm
+logging
+pyyaml
