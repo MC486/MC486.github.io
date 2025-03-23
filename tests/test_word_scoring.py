@@ -31,5 +31,15 @@ class TestWordScoring(unittest.TestCase):
         score = score_word("a")
         self.assertGreaterEqual(score, 1, "Even single-letter word should yield at least 1 point.")
 
+    def test_score_word_basic(self):
+        # Basic high-frequency word
+        score_apple = score_word("apple")
+        self.assertGreater(score_apple, 0)
+
+        # Less common but valid word
+        score_zebra = score_word("zebra")
+        self.assertGreater(score_zebra, 0)
+            
+
 if __name__ == "__main__":
     unittest.main() # Run the unit tests.
