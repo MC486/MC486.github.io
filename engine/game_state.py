@@ -26,17 +26,17 @@ class GameState:
         """
         Initializes player, letters, and game tracking.
         """
-        self.player_name = input("Enter your name: ").strip()
+        self.player_name = input("🕺🏼Enter your name: ").strip()
         self.shared_letters, self.boggle_letters = generate_letter_pool()
         self.valid_words = load_word_list() # Load the valid word list from the dictionary.
-        logger.info(f"Game started for player {self.player_name}.")
+        logger.info(f"🐦‍🔥 Game started for player {self.player_name}.")
 
     def redraw_boggle_letters(self):
         """
         Regenerates the player's boggle letters.
         """
         _, self.boggle_letters = generate_letter_pool()
-        print("New boggle letters drawn.")
+        print("✨New boggle letters drawn.✨")
 
     def display_status(self):
         """
@@ -44,41 +44,41 @@ class GameState:
         """
         print(f"\nShared Letters: {' '.join(self.shared_letters)}")
         print(f"Boggle Letters: {' '.join(self.boggle_letters)}")
-        print(f"Current Score: {self.player_score}")
+        print(f"Current Score: {self.player_score} 🏆")
 
     def process_turn(self, word):
         """
         Validates and scores the player word, stores data, and checks for AI win.
         """
         if not word:
-            print("No word entered.")
+            print("🚫 No word entered.🚫")
             return
 
         if word not in self.valid_words:
-            print(f"'{word}' is not a recognized English word. Try again.")
+            print(f"🤔'{word}' is not a recognized English word. Try again.🤔")
             return
 
         repeat_count = self.word_usage_counts.get(word, 0) # Get the number of times the word has been used.
         if repeat_count > 0:
-            print("You already used this word. Score will be reduced.")
+            print("⚠️ You already used this word. Score will be reduced. ⚠️")
 
         score = score_word(word, repeat_count) # Score the word based on rarity and repeat count.
         self.player_score += score
         self.used_words.add(word)
         self.word_usage_counts[word] = repeat_count + 1 # Increment the word usage count.
 
-        print(f"Word '{word}' scored {score} points.")
-        print(f"New Score: {self.player_score}")
+        print(f"Word '{word}' scored {score} points. 🎉")
+        print(f"New Score: {self.player_score} 📈")
 
         # Placeholder for AI guess
         ai_guess = "PLACEHOLDER"
         if ai_guess == word:
-            print(f"AI guessed your word! It was '{ai_guess}'.")
+            print(f"🤖 AI guessed your word! It was '{ai_guess}'. 🤯")
             self.is_game_over = True
 
     def display_game_over(self):
         """
         Ends the game and displays final score.
         """
-        print(f"\nGame Over! Final Score for {self.player_name}: {self.player_score}")
+        print(f"\nGame Over! 🏁 Final Score for {self.player_name}: {self.player_score} 🏆")
         logger.info("Game ended.")
