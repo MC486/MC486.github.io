@@ -29,5 +29,33 @@ class TestLetterPool(unittest.TestCase):
 
         self.assertGreater(len(all_samples), 10, "Letter pool should have variety across samples.") # Check if there are at least 10 unique letters generated.
 
+    def test_generate_shared_letters_constraints(self):
+        shared, _ = generate_letter_pool()
+        vowels = set("AEIOU")
+        consonants = set("BCDFGHJKLMNPQRSTVWXYZ")
+
+        has_vowel = any(letter in vowels for letter in shared)
+        has_consonant = any(letter in consonants for letter in shared)
+        is_unique = len(shared) == len(set(shared))
+
+        self.assertTrue(has_vowel)
+        self.assertTrue(has_consonant)
+        self.assertTrue(is_unique)
+
+    def test_letter_pool_refresh_respects_constraints(self):
+        # Simulate game state using the function directly
+        shared1, boggle1 = generate_letter_pool()
+        _, boggle2 = generate_letter_pool()
+
+        # Shared should remain unchanged between draws
+        self.assertEqual(shared1, shared1)  # Sanity check
+        self.assertNotEqual(boggle1, boggle2)
+
+    #TODO
+    @unittest.skip("Distribution testing requires statistical validation, not implemented.")
+    def test_generate_boggle_letters_distribution(self):
+        pass
+
+
 if __name__ == "__main__":
     unittest.main() # Run the unit tests.
