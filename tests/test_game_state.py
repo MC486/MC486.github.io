@@ -40,5 +40,13 @@ class TestGameState(unittest.TestCase):
         self.state.process_turn("LOPE") # Second time using "LOPE".
         self.assertEqual(self.state.word_usage_counts["LOPE"], 2) # Check if the usage count is 2.
 
+    def test_invalid_word_rejected(self):
+        """
+        Tests that invalid words are not accepted or scored.
+        """
+        self.state.process_turn("INVALIDWORD")
+        self.assertNotIn("INVALIDWORD", self.state.used_words)
+        self.assertEqual(self.state.player_score, 0)
+
 if __name__ == "__main__":
     unittest.main() # Run the unit tests.
