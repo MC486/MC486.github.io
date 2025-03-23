@@ -39,7 +39,12 @@ class TestWordScoring(unittest.TestCase):
         # Less common but valid word
         score_zebra = score_word("zebra")
         self.assertGreater(score_zebra, 0)
-            
 
+    def test_rarity_based_scoring(self):
+        rare_word = "QUIZ"  # Uses rarer letters
+        common_word = "SEE"  # Uses common letters
+        assert score_word(rare_word) > score_word(common_word)
+
+            
 if __name__ == "__main__":
     unittest.main() # Run the unit tests.
