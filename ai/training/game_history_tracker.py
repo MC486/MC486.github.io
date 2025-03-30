@@ -84,12 +84,13 @@ class GameHistoryTracker:
         if not self.current_game:
             return
             
+        word = event.data["word"].upper()  # Normalize case
         turn_data = TurnData(
-            word=event.data["word"],
+            word=word,
             score=event.data["score"],
-            letters_used=set(event.data["word"].upper()),
-            shared_letters=event.data.get("shared_letters", []),
-            private_letters=event.data.get("private_letters", []),
+            letters_used=set(word),
+            shared_letters=[l.upper() for l in event.data.get("shared_letters", [])],
+            private_letters=[l.upper() for l in event.data.get("private_letters", [])],
             turn_number=len(self.current_game.turns) + 1
         )
         

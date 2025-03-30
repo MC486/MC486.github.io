@@ -45,8 +45,8 @@ class WordNaiveBayes:
         if len(words) != len(labels):
             raise ValueError("Number of words and labels must match")
             
-        # Validate input data
-        valid_words = [word for word in words if isinstance(word, str) and word.isalpha()]
+        # Validate input data and normalize case
+        valid_words = [word.upper() for word in words if isinstance(word, str) and word.isalpha()]
         if not valid_words:
             raise ValueError("No valid words found in training data")
             
@@ -113,8 +113,8 @@ class WordNaiveBayes:
             raise ValueError("Input must be a valid alphabetic word")
             
         try:
-            # Transform the input word
-            X = self.vectorizer.transform([word])
+            # Transform the input word (normalize case)
+            X = self.vectorizer.transform([word.upper()])
             
             # Make prediction
             return self.classifier.predict(X)[0]
@@ -144,8 +144,8 @@ class WordNaiveBayes:
             raise ValueError("Input must be a valid alphabetic word")
             
         try:
-            # Transform the input word
-            X = self.vectorizer.transform([word])
+            # Transform the input word (normalize case)
+            X = self.vectorizer.transform([word.upper()])
             
             # Get probability estimates
             probs = self.classifier.predict_proba(X)[0]

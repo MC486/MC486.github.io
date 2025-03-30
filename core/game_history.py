@@ -32,6 +32,10 @@ class Turn:
     def __post_init__(self):
         if self.events is None:
             self.events = []
+        # Normalize case for words
+        self.player_word = self.player_word.upper()
+        if self.ai_word:
+            self.ai_word = self.ai_word.upper()
 
 class GameHistory:
     """

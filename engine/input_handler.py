@@ -62,13 +62,13 @@ class InputHandler:
                     self.event_manager.emit(GameEvent(
                         type=EventType.INVALID_WORD,
                         data={
-                            "word": cleaned_input,
-                            "available_letters": available_letters
+                            "word": cleaned_input.upper(),
+                            "available_letters": [l.upper() for l in available_letters]
                         }
                     ))
                     continue
 
-                return cleaned_input
+                return cleaned_input.upper()
 
             except (KeyboardInterrupt, EOFError):
                 print("\nGame interrupted. Exiting.")

@@ -51,8 +51,9 @@ class WordFrequencyAnalyzer:
         
         for word in words:
             # Validate word before analysis
+            word = word.upper()
             if self.word_validator.validate_word(word):
-                self._analyze_single_word(word.upper())
+                self._analyze_single_word(word)
             
         self._calculate_probabilities()
 
@@ -61,8 +62,11 @@ class WordFrequencyAnalyzer:
         Analyze patterns in a single word.
         
         Args:
-            word: Word to analyze
+            word: Word to analyze (must be uppercase)
         """
+        if not word or not word.isalpha():
+            return
+            
         # Update word length frequency
         self.word_lengths[len(word)] += 1
         self.total_words += 1
@@ -99,6 +103,8 @@ class WordFrequencyAnalyzer:
         Returns:
             Probability of the letter occurring
         """
+        if not letter or not letter.isalpha():
+            return 0.0
         return self.letter_probabilities.get(letter.upper(), 0.0)
 
     def get_next_letter_probability(self, current: str, next_letter: str) -> float:
@@ -112,6 +118,9 @@ class WordFrequencyAnalyzer:
         Returns:
             Probability of the letter sequence
         """
+        if not current or not next_letter or not current.isalpha() or not next_letter.isalpha():
+            return 0.0
+            
         current = current.upper()
         next_letter = next_letter.upper()
         
@@ -132,6 +141,9 @@ class WordFrequencyAnalyzer:
         Returns:
             Probability of letter at position
         """
+        if not letter or not letter.isalpha():
+            return 0.0
+            
         letter = letter.upper()
         if position not in self.position_frequencies:
             return 0.0
