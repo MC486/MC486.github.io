@@ -6,7 +6,7 @@ import logging
 import sys
 from pathlib import Path
 from unittest.mock import patch, MagicMock
-from engine.main import setup_logging, main
+from engine.engine_core import setup_logging, main
 
 class TestMain(unittest.TestCase):
     def setUp(self):

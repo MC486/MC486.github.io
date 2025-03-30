@@ -1,4 +1,4 @@
-# ai/markov_model.py
+# ai/markov_chain.py
 
 import random
 import logging
