@@ -1,0 +1,58 @@
+# Game Settings
+game:
+  min_word_length: 3
+  max_word_length: 15
+  initial_score: 0
+  repeat_penalty_factor: 0.5
+  turn_time_limit: 30  # seconds per turn
+  max_turns: 20
+
+# Letter Pool Configuration
+letter_pool:
+  shared_letter_count: 4
+  boggle_letter_count: 6
+  min_vowels: 1
+  min_consonants: 1
+  common_letter_bias: true
+  letter_weights:  # Optional: override default letter weights
+    E: 10
+    A: 7
+    R: 5
+    # ... other letters
+
+# Dictionary Settings
+dictionary:
+  filter_profanity: true
+  min_dictionary_word_length: 3
+  source: combined  # nltk, wordfreq, or combined
+  custom_dictionary_path: null  # Optional: path to custom word list
+
+# AI Configuration
+ai:
+  default_difficulty: medium  # easy, medium, hard
+  model_selection: q_learning  # q_learning, naive_bayes, markov, mcts
+  learning_rate: 0.1
+  exploration_rate: 0.2
+  discount_factor: 0.9
+  training:
+    episodes: 1000
+    save_interval: 100
+    model_save_path: "models/saved/"
+  word_analysis:
+    min_word_frequency: 0.001
+    max_pattern_length: 5
+    cache_size: 1000
+
+# Scoring System
+scoring:
+  base_points: 10
+  length_bonus: 2  # points per letter over minimum
+  rarity_multiplier: 1.5  # multiply score for rare letters
+  combo_bonus: 5  # bonus for using multiple shared letters
+
+# Logging and Debug
+logging:
+  level: INFO
+  save_game_logs: true
+  log_path: "logs/"
+  debug_mode: false

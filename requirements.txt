@@ -4,3 +4,9 @@ wordfreq>=3.0.3
 
 # Testing dependencies
 pytest>=7.4.3
+wordfreq>=3.0.1
+pyyaml>=6.0
+
+# AI-related dependencies
+scikit-learn>=1.4.0  # For Naive Bayes implementation
+tensorflow>=2.15.0   # For Q-learning implementation

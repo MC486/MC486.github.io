@@ -2,6 +2,10 @@
 config.yaml
 *.db
 .venv
+ROADMAP.md
+USER_GUIDE.md
+USER_GUIDE_CLI.md
+USER_GUIDE_GUI.md
 
 # Bytecode and Python cache files
 __pycache__/
