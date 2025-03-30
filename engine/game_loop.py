@@ -50,8 +50,9 @@ class GameLoop:
             self.state.initialize_game()
 
             while not self.state.is_game_over:
+                # Player's turn
                 self.state.display_status()
-
+                print("\n=== Your Turn ===")
                 player_word = self.input_handler.get_player_word(self.state)
                 if player_word == "QUIT":
                     logger.info("Player chose to quit.")
@@ -60,6 +61,10 @@ class GameLoop:
                     continue  # Already handled by event handler
 
                 self.state.process_turn(player_word)
+                
+                # AI's turn
+                print("\n=== AI's Turn ===")
+                self.state.process_ai_turn()
 
         except Exception as e:
             logger.error(f"Unexpected error in game loop: {str(e)}", exc_info=True)

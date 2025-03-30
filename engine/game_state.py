@@ -64,6 +64,56 @@ class GameState:
         self.event_manager.subscribe(EventType.GAME_END, self._handle_game_end)
         self.event_manager.subscribe(EventType.WORD_SUBMITTED, self._handle_word_submission)
         
+    def _handle_game_start(self, event: GameEvent) -> None:
+        """Handle game start event"""
+        self.phase = GamePhase.IN_PROGRESS
+        self.start_time = event.data.get("start_time", datetime.now())
+        self.is_game_over = False
+        
+        # Update player name if provided
+        if "player_name" in event.data:
+            self.human_player.name = event.data["player_name"]
+            
+        # Update letter pools if provided
+        if "shared_letters" in event.data:
+            self.shared_letters = event.data["shared_letters"]
+        if "boggle_letters" in event.data:
+            self.boggle_letters = event.data["boggle_letters"]
+            
+        logger.info(f"Game started for player {self.human_player.name}")
+        
+    def _handle_game_end(self, event: GameEvent) -> None:
+        """Handle game end event"""
+        self.phase = GamePhase.ENDED
+        self.end_time = event.data.get("end_time", datetime.now())
+        self.is_game_over = True
+        
+        # Update final scores if provided
+        if "human_score" in event.data:
+            self.human_player.score = event.data["human_score"]
+        if "ai_score" in event.data:
+            self.ai_player.score = event.data["ai_score"]
+            
+        logger.info(f"Game ended. Final score: {self.human_player.score}")
+        
+    def _handle_word_submission(self, event: GameEvent) -> None:
+        """Handle word submission event"""
+        word = event.data.get("word", "")
+        player_id = event.data.get("player_id", "")
+        score = event.data.get("score", 0)
+        repeat_count = event.data.get("repeat_count", 0)
+        
+        if not word or not player_id:
+            return
+            
+        # Update appropriate player's state
+        player = self.human_player if player_id == "human" else self.ai_player
+        # Score is already updated in process_turn
+        player.used_words.add(word)
+        player.word_usage_counts[word] = repeat_count + 1
+        
+        logger.debug(f"Word '{word}' submitted by {player_id} for {score} points")
+
     def initialize_game(self) -> None:
         """Initializes player, letters, and game tracking."""
         # Original initialization
@@ -185,3 +235,60 @@ class GameState:
             "boggle_letters": self.boggle_letters.copy(),
             "duration": (datetime.now() - self.start_time).total_seconds() if self.start_time else 0
         }
+
+    def display_game_over(self) -> None:
+        """Display the final game state and summary."""
+        if not self.is_game_over:
+            return
+            
+        print("\n=== Game Over ===")
+        print(f"Player: {self.human_player.name}")
+        print(f"Final Score: {self.human_player.score}")
+        print(f"Words Used: {len(self.human_player.used_words)}")
+        
+        if self.start_time and self.end_time:
+            duration = (self.end_time - self.start_time).total_seconds()
+            print(f"Game Duration: {duration:.1f} seconds")
+            
+        print("================\n")
+
+    def process_ai_turn(self) -> None:
+        """Process the AI's turn, including word selection and scoring."""
+        # Get available letters
+        available_letters = self.shared_letters + self.boggle_letters
+        
+        # Get AI's word selection (placeholder for now)
+        ai_word = "PLACEHOLDER"  # This should be replaced with actual AI word selection
+        
+        # Validate word
+        if not self.word_validator.validate_word_with_letters(ai_word, available_letters):
+            print("🤖 AI couldn't find a valid word.")
+            return
+            
+        # Get word usage count
+        repeat_count = self.ai_player.word_usage_counts.get(ai_word, 0)
+        
+        # Score calculation
+        score = score_word(ai_word, repeat_count)
+        self.ai_player.score += score
+        self.ai_player.used_words.add(ai_word)
+        self.ai_player.word_usage_counts[ai_word] = repeat_count + 1
+        
+        # Emit word submission event
+        self.event_manager.emit(GameEvent(
+            type=EventType.WORD_SUBMITTED,
+            data={
+                "word": ai_word,
+                "player_id": "ai",
+                "score": score,
+                "repeat_count": repeat_count
+            }
+        ))
+        
+        print(f"🤖 AI played '{ai_word}' for {score} points.")
+        print(f"AI Score: {self.ai_player.score} 📊")
+        
+        # Check if AI won
+        if self.ai_player.score >= 100:
+            print("🤖 AI has won the game! 🏆")
+            self.end_game()

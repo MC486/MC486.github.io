@@ -8,6 +8,7 @@ class EventType(Enum):
     # Game flow events
     GAME_START = "game_start"
     GAME_END = "game_end"
+    GAME_QUIT = "game_quit"
     TURN_START = "turn_start"
     TURN_END = "turn_end"
     
@@ -15,6 +16,9 @@ class EventType(Enum):
     WORD_SUBMITTED = "word_submitted"
     WORD_VALIDATED = "word_validated"
     SCORE_UPDATED = "score_updated"
+    BOGGLE_REQUESTED = "boggle_requested"
+    INVALID_WORD = "invalid_word"
+    LETTERS_REDRAWN = "letters_redrawn"
     
     # AI events
     AI_TURN_START = "ai_turn_start"
