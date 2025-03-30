@@ -19,7 +19,7 @@ class TestWordListLoader(unittest.TestCase):
         """
         word_set = load_word_list() # Load the word list.
         # Check for a few high-frequency English words
-        for word in ["apple", "tree", "game", "player"]:
+        for word in ["orange", "apple", "tree", "game", "player"]:
             self.assertIn(word, word_set, f"Expected word '{word}' not found in word list.") # Check if common words are in the loaded set.
 
 if __name__ == "__main__":

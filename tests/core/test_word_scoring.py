@@ -26,10 +26,10 @@ class TestWordScoring(unittest.TestCase):
 
     def test_edge_case_short_word(self):
         """
-        Tests that even a single-letter word scores at least 1 point.
+        Tests that the shortest allowed word (3 letters) scores at least 1 point.
         """
-        score = score_word("a")
-        self.assertGreaterEqual(score, 1, "Even single-letter word should yield at least 1 point.")
+        score = score_word("cat")
+        self.assertGreaterEqual(score, 1, "Three-letter word should yield at least 1 point.")
 
     def test_score_word_basic(self):
         # Basic high-frequency word

@@ -35,7 +35,10 @@ def score_word(word: str, repeat_count: int = 0) -> int:
         logger.warning(f"Attempted to score invalid word: '{word}'")
         return 0
         
-    base_score = sum(letter_score_map.get(letter, 1) for letter in word) # Calculate the base score based on letter rarity.
+    base_score = sum(letter_score_map.get(letter, 1) for letter in word)
+    
+    # Ensure minimum score of 1 for any valid word
+    base_score = max(1, base_score)
 
     # Apply diminishing returns if word is repeated
     if repeat_count > 0:

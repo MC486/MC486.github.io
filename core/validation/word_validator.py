@@ -61,6 +61,17 @@ class WordValidator:
         """
         return bool(word) and self.trie.search(word)
 
+    def validate_word(self, word: str) -> bool:
+        """Alias for is_valid_word for compatibility.
+        
+        Args:
+            word: Word to validate
+            
+        Returns:
+            bool: True if word is in dictionary
+        """
+        return self.is_valid_word(word)
+
     def get_valid_words(self, letters: List[str], min_length: int = 3) -> Set[str]:
         """Find all valid words that can be made from given letters.
         

@@ -22,13 +22,15 @@ class TestTrieUtils(unittest.TestCase):
         """Test loading words from a file"""
         # Test with mock file
         mock_content = "HELLO\nHELP\nHEAP\n\nWORLD"
-        with patch("builtins.open", mock_open(read_data=mock_content)):
+        with patch("builtins.open", mock_open(read_data=mock_content)), \
+             patch("os.path.exists", return_value=True):
             words = TrieUtils.load_word_list("mock_path")
             self.assertEqual(words, self.sample_words)
 
         # Test with non-existent file
-        with self.assertRaises(FileNotFoundError):
-            TrieUtils.load_word_list("nonexistent.txt")
+        with patch("os.path.exists", return_value=False):
+            with self.assertRaises(FileNotFoundError):
+                TrieUtils.load_word_list("nonexistent.txt")
 
     def test_build_trie_from_words(self):
         """Test building Trie from a set of words"""
@@ -44,12 +46,16 @@ class TestTrieUtils(unittest.TestCase):
     def test_build_trie_from_file(self):
         """Test building Trie from a file"""
         mock_content = "HELLO\nHELP\nHEAP\n\nWORLD"
-        with patch("builtins.open", mock_open(read_data=mock_content)):
+        with patch("builtins.open", mock_open(read_data=mock_content)), \
+             patch("os.path.exists", return_value=True):
             trie = TrieUtils.build_trie_from_file("mock_path")
             
             # Verify all words were added
             for word in self.sample_words:
                 self.assertTrue(trie.search(word))
+            
+            # Verify word count
+            self.assertEqual(trie.total_words, len(self.sample_words))
 
     def test_save_and_load_trie(self):
         """Test Trie serialization and deserialization"""
