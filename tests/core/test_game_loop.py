@@ -77,5 +77,61 @@ class TestGameLoop(unittest.TestCase):
         self.game._handle_invalid_word(invalid_word_event)
         # Add any specific assertions for invalid word handling
 
+    @patch('builtins.input', side_effect=["TestPlayer"])
+    def test_error_during_initialization(self, mock_input):
+        """
+        Test that errors during game initialization are handled properly.
+        """
+        # Mock methods
+        self.game.state.display_status = MagicMock()
+        self.game.state.display_game_over = MagicMock()
+        
+        # Make initialize_game raise an exception
+        self.game.state.initialize_game = MagicMock(side_effect=ValueError("Test error"))
+        
+        # Start should raise the error but still clean up
+        with self.assertRaises(ValueError):
+            self.game.start()
+            
+        # Verify cleanup was performed
+        self.game.state.display_game_over.assert_called_once()
+        self.assertTrue(self.game.state.is_game_over)
+
+    @patch('builtins.input', side_effect=["TestPlayer"])
+    def test_error_during_turn_processing(self, mock_input):
+        """
+        Test that errors during turn processing are handled properly.
+        """
+        # Mock methods
+        self.game.state.display_status = MagicMock()
+        self.game.state.display_game_over = MagicMock()
+        self.game.state.process_turn = MagicMock(side_effect=RuntimeError("Test error"))
+        
+        # Start should raise the error but still clean up
+        with self.assertRaises(RuntimeError):
+            self.game.start()
+            
+        # Verify cleanup was performed
+        self.game.state.display_game_over.assert_called_once()
+        self.assertTrue(self.game.state.is_game_over)
+
+    @patch('builtins.input', side_effect=["TestPlayer"])
+    def test_error_during_display_status(self, mock_input):
+        """
+        Test that errors during status display are handled properly.
+        """
+        # Mock methods
+        self.game.state.display_status = MagicMock(side_effect=KeyError("Test error"))
+        self.game.state.display_game_over = MagicMock()
+        self.game.state.process_turn = MagicMock()
+        
+        # Start should raise the error but still clean up
+        with self.assertRaises(KeyError):
+            self.game.start()
+            
+        # Verify cleanup was performed
+        self.game.state.display_game_over.assert_called_once()
+        self.assertTrue(self.game.state.is_game_over)
+
 if __name__ == '__main__':
     unittest.main()
