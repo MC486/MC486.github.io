@@ -1,10 +1,12 @@
 # engine/game_loop.py
 # Manages the lifecycle of the game: setup, turn processing, and exit conditions.
 
+from typing import Optional
 import logging
-from engine.input_handler import InputHandler
 from engine.game_state import GameState
-from core.game_events import GameEventManager, EventType
+from engine.input_handler import InputHandler
+from core.game_events import EventType
+from core.game_events_manager import GameEventManager
 
 logger = logging.getLogger(__name__)
 

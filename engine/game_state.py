@@ -7,7 +7,8 @@ from dataclasses import dataclass
 from core.letter_pool import generate_letter_pool
 from core.word_scoring import score_word
 from core.validation.word_validator import WordValidator
-from core.game_events import GameEvent, EventType, GameEventManager
+from core.game_events import GameEvent, EventType
+from core.game_events_manager import GameEventManager
 
 logger = logging.getLogger(__name__)
 

@@ -6,7 +6,9 @@ import sys
 from datetime import datetime
 from pathlib import Path
 from engine.game_loop import GameLoop
-from core.game_events import GameEventManager, EventType
+from core.game_events import EventType
+from core.game_events_manager import GameEventManager
+from engine.game_state import GameState
 
 def setup_logging():
     """

@@ -4,7 +4,8 @@
 import logging
 from collections import Counter
 from core.validation.word_validator import WordValidator
-from core.game_events import GameEvent, EventType, GameEventManager
+from core.game_events import GameEvent, EventType
+from core.game_events_manager import GameEventManager
 
 logger = logging.getLogger(__name__)
 

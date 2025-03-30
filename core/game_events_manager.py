@@ -1,7 +1,7 @@
 from typing import Dict, List, Callable, Optional
 import logging
 from collections import defaultdict
-from game_events import GameEvent, EventType
+from core.game_events import GameEvent, EventType
 
 class GameEventManager:
     """
