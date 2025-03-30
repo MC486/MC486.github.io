@@ -1,0 +1,6 @@
+# Core dependencies
+nltk>=3.8.1
+wordfreq>=3.0.3
+
+# Testing dependencies
+pytest>=7.4.3
