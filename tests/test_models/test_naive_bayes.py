@@ -6,139 +6,69 @@ from ai.models.naive_bayes import NaiveBayes
 
 class TestNaiveBayes(unittest.TestCase):
     def setUp(self):
-        """Setup test environment before each test"""
+        """Set up test environment before each test"""
         self.event_manager = Mock(spec=GameEventManager)
         self.word_analyzer = Mock(spec=WordFrequencyAnalyzer)
-        self.naive_bayes = NaiveBayes(
-            event_manager=self.event_manager,
-            word_analyzer=self.word_analyzer
-        )
-
+        self.model = NaiveBayes(self.event_manager, self.word_analyzer)
+    
     def test_initialization(self):
-        """Test proper initialization of NaiveBayes"""
-        self.assertEqual(self.naive_bayes.total_words, 0)
-        self.assertEqual(len(self.naive_bayes.length_probs), 0)
-        self.assertEqual(len(self.naive_bayes.position_probs), 0)
-        self.assertEqual(len(self.naive_bayes.pair_probs), 0)
-        self.assertEqual(len(self.naive_bayes.score_priors), 0)
-
-    def test_train_single_word(self):
-        """Test training on a single word"""
-        test_word = "HELLO"
-        test_score = 10
-        self.naive_bayes._train_single_word(test_word, test_score)
-
-        # Check length probabilities
-        self.assertIn(5, self.naive_bayes.length_probs)
+        """Test proper initialization of the model"""
+        self.assertEqual(self.model.total_observations, 0)
+        self.assertEqual(len(self.model.word_probabilities), 0)
+        self.assertEqual(len(self.model.pattern_probabilities), 0)
         
-        # Check position probabilities
-        self.assertIn(0, self.naive_bayes.position_probs)  # First position
-        self.assertIn('H', self.naive_bayes.position_probs[0])
-        
-        # Check pair probabilities
-        self.assertIn('H', self.naive_bayes.pair_probs)
-        self.assertIn('E', self.naive_bayes.pair_probs['H'])
-        
-        # Check score priors
-        self.assertIn(test_score, self.naive_bayes.score_priors)
-
-    def test_train_multiple_words(self):
-        """Test training on multiple words with scores"""
-        training_data = [
-            ("HELLO", 10),
-            ("HELP", 8),
-            ("HEAP", 7)
-        ]
-        self.naive_bayes.train(training_data)
-
-        # Check common patterns were learned
-        self.assertIn('H', self.naive_bayes.position_probs[0])
-        self.assertIn('E', self.naive_bayes.position_probs[1])
-
-    def test_probability_calculation(self):
-        """Test probability calculations"""
-        self.naive_bayes.train([("HELLO", 10), ("HELP", 8)])
-        self.naive_bayes._calculate_probabilities()
-
-        # Check probabilities sum to 1 for each position
-        for pos in self.naive_bayes.position_probs:
-            prob_sum = sum(self.naive_bayes.position_probs[pos].values())
-            self.assertAlmostEqual(prob_sum, 1.0, places=5)
-
-    def test_word_probability_estimation(self):
-        """Test word probability estimation"""
-        self.naive_bayes.train([("HELLO", 10), ("HELP", 8), ("HEAP", 7)])
-        
-        # Test probability of seen word
-        prob_hello = self.naive_bayes.estimate_word_probability("HELLO")
-        self.assertGreater(prob_hello, 0.0)
-        
-        # Test probability of unseen word
-        prob_unseen = self.naive_bayes.estimate_word_probability("XYZ")
-        self.assertGreaterEqual(prob_unseen, 0.0)  # Should handle unseen words
-
-    def test_score_prediction(self):
-        """Test score prediction"""
-        training_data = [("HELLO", 10), ("HELP", 8), ("HEAP", 7)]
-        self.naive_bayes.train(training_data)
-        
-        predicted_score = self.naive_bayes.predict_score("HELLO")
-        self.assertGreaterEqual(predicted_score, 0)
-
-    def test_candidate_evaluation(self):
-        """Test candidate word evaluation"""
-        self.naive_bayes.train([("HELLO", 10), ("HELP", 8)])
-        
-        candidates = ["HELLO", "HELP", "NEW"]
-        evaluations = self.naive_bayes.evaluate_candidates(candidates)
-        
-        self.assertEqual(len(evaluations), len(candidates))
-        self.assertTrue(all(isinstance(score, float) for _, score in evaluations))
-        self.assertTrue(all(score >= 0 for _, score in evaluations))
-
-    def test_event_handling(self):
-        """Test event handling"""
-        event = GameEvent(
-            type=EventType.WORD_SUBMITTED,
-            data={
-                "word": "HELLO",
-                "score": 10
-            }
+        # Verify event subscriptions
+        self.event_manager.subscribe.assert_any_call(
+            EventType.WORD_SUBMITTED, self.model._handle_word_submission
         )
+        self.event_manager.subscribe.assert_any_call(
+            EventType.GAME_START, self.model._handle_game_start
+        )
+    
+    def test_word_submission_handling(self):
+        """Test model updates on word submission"""
+        # Submit a test word with positive score
+        event = Mock(spec=GameEvent)
+        event.data = {"word": "test", "score": 10}
+        self.model._handle_word_submission(event)
         
-        self.naive_bayes._handle_word_submission(event)
-        self.assertEqual(self.naive_bayes.total_words, 1)
-
-    def test_model_statistics(self):
-        """Test model statistics reporting"""
-        self.naive_bayes.train([("HELLO", 10), ("HELP", 8)])
+        self.assertEqual(self.model.total_observations, 1)
+        self.assertEqual(self.model.word_probabilities["test"], 1)
+        self.assertEqual(self.model.pattern_probabilities["prefix_tes"], 1)
+        self.assertEqual(self.model.pattern_probabilities["suffix_est"], 1)
+    
+    def test_game_start_reset(self):
+        """Test model reset on game start"""
+        # Add some data first
+        self.model.word_probabilities["test"] = 1
+        self.model.pattern_probabilities["prefix_tes"] = 1
+        self.model.total_observations = 1
         
-        stats = self.naive_bayes.get_model_stats()
-        self.assertIn("total_words_trained", stats)
-        self.assertIn("unique_lengths", stats)
-        self.assertIn("unique_scores", stats)
-
-    def test_laplace_smoothing(self):
-        """Test Laplace smoothing for unseen events"""
-        self.naive_bayes.train([("HELLO", 10)])
+        # Trigger game start
+        event = Mock(spec=GameEvent)
+        self.model._handle_game_start(event)
         
-        # Test probability for unseen letter in seen position
-        prob = self.naive_bayes.position_probs[0].get('X', 0)
-        self.assertGreater(prob, 0)  # Should be smoothed, not zero
-
-    def test_invalid_inputs(self):
-        """Test handling of invalid inputs"""
-        # Empty word
-        self.naive_bayes._train_single_word("", 0)
-        self.assertEqual(self.naive_bayes.total_words, 0)
+        self.assertEqual(self.model.total_observations, 0)
+        self.assertEqual(len(self.model.word_probabilities), 0)
+        self.assertEqual(len(self.model.pattern_probabilities), 0)
+    
+    def test_probability_estimation(self):
+        """Test word probability estimation"""
+        # Setup word analyzer mock
+        self.word_analyzer.get_word_score.return_value = 0.5
         
-        # None score
-        self.naive_bayes._train_single_word("HELLO", None)
-        self.assertEqual(len(self.naive_bayes.score_priors), 0)
+        # Test with no observations
+        prob = self.model.estimate_word_probability("test")
+        self.assertEqual(prob, 0.5)  # Should return word analyzer score
         
-        # Empty candidate list
-        evaluations = self.naive_bayes.evaluate_candidates([])
-        self.assertEqual(len(evaluations), 0)
+        # Add some observations
+        self.model._update_probabilities("test")
+        self.model._update_probabilities("testing")
+        
+        # Test probability estimation
+        prob = self.model.estimate_word_probability("test")
+        self.assertGreater(prob, 0.01)  # Should be above minimum threshold
+        self.assertLessEqual(prob, 1.0)  # Should not exceed 1.0
 
 if __name__ == '__main__':
     unittest.main()
