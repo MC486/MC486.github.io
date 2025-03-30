@@ -4,6 +4,7 @@
 import logging
 from collections import Counter
 from core.letter_pool import WEIGHTED_ALPHABET
+from core.validation.word_validator import WordValidator
 
 logger = logging.getLogger(__name__)
 
@@ -15,15 +16,25 @@ letter_score_map = {
     for letter, count in _letter_frequencies.items()
 }
 
+# Initialize word validator
+_word_validator = WordValidator(use_nltk=True)
+
 def score_word(word: str, repeat_count: int = 0) -> int:
     """
     Scores a word based on letter rarity and length. Applies a progressive penalty if it's repeated.
+    Only scores valid words.
 
     :param word: The word to score.
     :param repeat_count: How many times this word has already been used.
-    :return: Calculated score after fatigue penalty.
+    :return: Calculated score after fatigue penalty, or 0 if word is invalid.
     """
     word = word.upper()  # Normalize for consistency with letter pool
+    
+    # Validate word before scoring
+    if not _word_validator.validate_word(word):
+        logger.warning(f"Attempted to score invalid word: '{word}'")
+        return 0
+        
     base_score = sum(letter_score_map.get(letter, 1) for letter in word) # Calculate the base score based on letter rarity.
 
     # Apply diminishing returns if word is repeated
