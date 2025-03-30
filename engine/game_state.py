@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from core.letter_pool import generate_letter_pool
 from core.word_scoring import score_word
-from utils.word_list_loader import load_word_list
+from core.validation.word_validator import WordValidator
 from core.game_events import GameEvent, EventType, GameEventManager
 
 logger = logging.getLogger(__name__)
@@ -37,7 +37,7 @@ class GameState:
     """
     def __init__(self, event_manager: GameEventManager):
         # Original initialization
-        self.valid_words = set()
+        self.word_validator = WordValidator(use_nltk=True)
         self.is_game_over = False
         
         # Enhanced state tracking
@@ -68,7 +68,6 @@ class GameState:
         # Original initialization
         self.human_player.name = input("🕺🏼Enter your name: ").strip()
         self.shared_letters, self.boggle_letters = generate_letter_pool()
-        self.valid_words = load_word_list()
         
         # New event-based initialization
         self.phase = GamePhase.IN_PROGRESS
@@ -111,8 +110,10 @@ class GameState:
             print("🚫 No word entered.🚫")
             return
 
-        if word not in self.valid_words:
-            print(f"🤔'{word}' is not a recognized English word. Try again.🤔")
+        # Validate word using WordValidator
+        available_letters = self.shared_letters + self.boggle_letters
+        if not self.word_validator.validate_word_with_letters(word, available_letters):
+            print(f"🤔'{word}' is not a valid word or cannot be formed with current letters. Try again.🤔")
             return
 
         # Get word usage count

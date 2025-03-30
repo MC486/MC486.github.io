@@ -3,6 +3,7 @@ from collections import defaultdict
 import math
 from core.game_events import GameEvent, EventType
 from core.game_events_manager import GameEventManager
+from core.validation.word_validator import WordValidator
 
 class WordFrequencyAnalyzer:
     """
@@ -11,6 +12,7 @@ class WordFrequencyAnalyzer:
     """
     def __init__(self, event_manager: GameEventManager):
         self.event_manager = event_manager
+        self.word_validator = WordValidator(use_nltk=True)
         
         # Letter frequency tracking
         self.letter_frequencies: DefaultDict[str, int] = defaultdict(int)
@@ -48,7 +50,9 @@ class WordFrequencyAnalyzer:
         ))
         
         for word in words:
-            self._analyze_single_word(word.upper())
+            # Validate word before analysis
+            if self.word_validator.validate_word(word):
+                self._analyze_single_word(word.upper())
             
         self._calculate_probabilities()
 
@@ -146,6 +150,9 @@ class WordFrequencyAnalyzer:
             Probability score for the word
         """
         word = word.upper()
+        if not self.word_validator.validate_word(word):
+            return 0.0
+            
         score = self.length_probabilities.get(len(word), 0.0)
         
         # Multiply by letter probabilities
@@ -161,7 +168,7 @@ class WordFrequencyAnalyzer:
     def _handle_word_submission(self, event: GameEvent) -> None:
         """Handle word submission events to update analysis."""
         word = event.data.get("word", "").upper()
-        if word:
+        if word and self.word_validator.validate_word(word):
             self._analyze_single_word(word)
             self._calculate_probabilities()
             
