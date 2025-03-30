@@ -1,5 +1,5 @@
-# main.py
-# Entry point for the AI word strategy game.
+# engine_core.py
+# Core game initialization and setup.
 
 import logging
 import sys
