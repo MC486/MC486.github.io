@@ -1,8 +1,12 @@
 from typing import Dict, List, Set, Tuple, Optional
 import random
 from collections import defaultdict
-from core.game_events import GameEvent, EventType, GameEventManager
+from core.game_events import GameEvent, EventType
+from core.game_events_manager import GameEventManager
 from ai.word_analysis import WordFrequencyAnalyzer
+import logging
+
+logger = logging.getLogger(__name__)
 
 class QLearningAgent:
     """

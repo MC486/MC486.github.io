@@ -59,7 +59,10 @@ def load_word_list():
         logger.error(f"Unable to load NLTK word list: {err}")
 
     # Validate all words using the validator
-    validated_words = {word for word in freq_words if word_validator.validate_word(word)}
+    validated_words = set()
+    for word in freq_words:
+        if word_validator.validate_word(word):
+            validated_words.add(word)
     logger.info(f"Final validated word list contains {len(validated_words)} words.")
 
     _cached_word_set = validated_words

@@ -2,9 +2,12 @@
 # Unit tests for game state logic.
 
 import unittest
+import pytest
 from unittest.mock import Mock, patch
+from core.game_events import GameEvent, EventType
+from core.game_events_manager import GameEventManager
 from engine.game_state import GameState
-from core.game_events import GameEventManager
+from ai.ai_player import AIPlayer
 
 class TestGameState(unittest.TestCase):
     def setUp(self):

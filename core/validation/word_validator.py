@@ -2,6 +2,10 @@ from typing import Set, List, Optional
 import nltk
 from .trie import Trie
 from .trie_utils import TrieUtils
+import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 class WordValidator:
     """Validates words using a Trie-based dictionary with NLTK words."""
@@ -16,6 +20,14 @@ class WordValidator:
         self.trie = Trie()
         self.cache_path = None
         
+        # Load custom dictionary first
+        try:
+            custom_path = custom_dictionary_path or "data/custom_dictionary.txt"
+            if os.path.exists(custom_path):
+                self.load_custom_dictionary(custom_path)
+        except Exception as e:
+            logger.warning(f"Failed to load custom dictionary: {e}")
+        
         if use_nltk:
             try:
                 nltk.data.find('corpora/words')
@@ -26,11 +38,34 @@ class WordValidator:
             word_list = words.words()
             # Filter words to only include valid lengths and remove special characters
             valid_words = {word.upper() for word in word_list 
-                         if word.isalpha() and 3 <= len(word) <= 15}
+                         if word.isalpha() and 1 <= len(word) <= 15}
+            
+            # Add common plural forms
+            valid_words.update(self._get_common_plurals(valid_words))
+            
             self.trie = TrieUtils.build_trie_from_words(valid_words)
+
+    def _get_common_plurals(self, base_words: Set[str]) -> Set[str]:
+        """Generate common plural forms from base words.
         
-        if custom_dictionary_path:
-            self.load_custom_dictionary(custom_dictionary_path)
+        Args:
+            base_words: Set of base words to generate plurals from
+            
+        Returns:
+            Set of plural forms
+        """
+        plurals = set()
+        for word in base_words:
+            # Add 's' plural
+            if not word.endswith('S'):
+                plurals.add(word + 'S')
+            # Add 'es' plural for words ending in s, x, z, ch, sh
+            if word.endswith(('S', 'X', 'Z', 'CH', 'SH')):
+                plurals.add(word + 'ES')
+            # Add 'ies' plural for words ending in y
+            if word.endswith('Y'):
+                plurals.add(word[:-1] + 'IES')
+        return plurals
 
     def load_custom_dictionary(self, file_path: str) -> None:
         """Load additional words from a custom dictionary file.
@@ -59,7 +94,9 @@ class WordValidator:
         Returns:
             bool: True if word is in dictionary
         """
-        return bool(word) and self.trie.search(word)
+        if not word:
+            return False
+        return self.trie.search(word.upper())
 
     def validate_word(self, word: str) -> bool:
         """Alias for is_valid_word for compatibility.

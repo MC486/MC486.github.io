@@ -9,6 +9,7 @@ from core.word_scoring import score_word
 from core.validation.word_validator import WordValidator
 from core.game_events import GameEvent, EventType
 from core.game_events_manager import GameEventManager
+from ai.ai_strategy import AIStrategy
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +25,7 @@ class PlayerState:
     score: int = 0
     used_words: Set[str] = None
     word_usage_counts: Dict[str, int] = None
+    last_played_word: Optional[str] = None
     
     def __post_init__(self):
         if self.used_words is None:
@@ -54,6 +56,9 @@ class GameState:
         # Letter pools (maintaining original structure)
         self.shared_letters: List[str] = []
         self.boggle_letters: List[str] = []
+        
+        # AI Strategy
+        self.ai_strategy = AIStrategy(event_manager, difficulty='medium')
         
         # Setup event subscriptions
         self._setup_event_subscriptions()
@@ -177,6 +182,8 @@ class GameState:
         self.human_player.score += score
         self.human_player.used_words.add(word)
         self.human_player.word_usage_counts[word] = repeat_count + 1
+        # Store the last played word
+        self.human_player.last_played_word = word
 
         # Emit word submission event
         self.event_manager.emit(GameEvent(
@@ -191,12 +198,6 @@ class GameState:
 
         print(f"Word '{word}' scored {score} points. 🎉")
         print(f"New Score: {self.human_player.score} 📈")
-
-        # AI interaction (placeholder for now)
-        ai_guess = "PLACEHOLDER"
-        if ai_guess == word:
-            print(f"🤖 AI guessed your word! It was '{ai_guess}'. 🤯")
-            self.end_game()
 
     def end_game(self) -> None:
         """Ends the game and displays final score."""
@@ -256,17 +257,27 @@ class GameState:
         """Process the AI's turn, including word selection and scoring."""
         # Get available letters
         available_letters = self.shared_letters + self.boggle_letters
+        logger.info(f"AI's turn - Available letters: {available_letters}")
         
-        # Get AI's word selection (placeholder for now)
-        ai_word = "PLACEHOLDER"  # This should be replaced with actual AI word selection
+        # Get AI's word selection using the strategy
+        logger.info("AI attempting to choose a word...")
+        ai_word = self.ai_strategy.choose_word(available_letters)
         
-        # Validate word
-        if not self.word_validator.validate_word_with_letters(ai_word, available_letters):
+        if not ai_word:
+            logger.warning("AI failed to find a valid word")
             print("🤖 AI couldn't find a valid word.")
+            return
+            
+        # Validate word
+        logger.info(f"AI selected word: {ai_word}")
+        if not self.word_validator.validate_word_with_letters(ai_word, available_letters):
+            logger.error(f"AI's word selection '{ai_word}' was invalid")
+            print("🤖 AI's word selection was invalid.")
             return
             
         # Get word usage count
         repeat_count = self.ai_player.word_usage_counts.get(ai_word, 0)
+        logger.info(f"Word '{ai_word}' has been used {repeat_count} times before")
         
         # Score calculation
         score = score_word(ai_word, repeat_count)
@@ -287,8 +298,8 @@ class GameState:
         
         print(f"🤖 AI played '{ai_word}' for {score} points.")
         print(f"AI Score: {self.ai_player.score} 📊")
-        
-        # Check if AI won
-        if self.ai_player.score >= 100:
-            print("🤖 AI has won the game! 🏆")
+
+        # Check if AI guessed the player's last played word
+        if self.human_player.last_played_word and ai_word == self.human_player.last_played_word:
+            print(f"🤖 AI guessed your word! It was '{ai_word}'. 🤯")
             self.end_game()

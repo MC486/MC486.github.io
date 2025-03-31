@@ -1,4 +1,6 @@
 from typing import Dict, List, Set, Optional, Tuple
+import logging
+from collections import defaultdict
 from core.game_events import GameEvent, EventType
 from core.game_events_manager import GameEventManager
 from ai.word_analysis import WordFrequencyAnalyzer
@@ -8,27 +10,48 @@ from ai.models.mcts import MCTS
 from ai.models.q_learning import QLearningAgent
 from core.validation.word_validator import WordValidator
 
+logger = logging.getLogger(__name__)
+
 class AIStrategy:
     """
-    Coordinates between different AI models to make optimal word selections.
-    Combines strengths of each model based on game state and difficulty.
+    Coordinates between different AI models to make strategic decisions.
+    Uses a combination of Markov Chain, MCTS, Naive Bayes, and Q-learning.
     """
-    def __init__(self, 
-                 event_manager: GameEventManager,
-                 word_analyzer: WordFrequencyAnalyzer,
-                 valid_words: Set[str],
-                 difficulty: str = "medium"):
-        self.event_manager = event_manager
-        self.word_analyzer = word_analyzer
-        self.valid_words = valid_words
-        self.difficulty = difficulty
-        self.word_validator = WordValidator(use_nltk=True)
+    def __init__(self, event_manager: GameEventManager, difficulty: str = 'medium'):
+        """
+        Initialize the AI strategy with all components.
         
-        # Initialize AI models
-        self.markov_chain = MarkovChain(event_manager, word_analyzer)
-        self.naive_bayes = NaiveBayes(event_manager, word_analyzer)
-        self.mcts = MCTS(event_manager, word_analyzer, valid_words)
-        self.q_learning = QLearningAgent(event_manager, word_analyzer)
+        Args:
+            event_manager (GameEventManager): Event manager for game events
+            difficulty (str): Game difficulty level ('easy', 'medium', 'hard')
+        """
+        self.event_manager = event_manager
+        self.difficulty = difficulty
+        self.word_validator = WordValidator()
+        self.word_analyzer = WordFrequencyAnalyzer()
+        
+        # Initialize AI components
+        self.markov_chain = MarkovChain(order=2)
+        self.mcts = MCTS()
+        self.naive_bayes = NaiveBayes()
+        self.q_agent = QLearningAgent(
+            event_manager=event_manager,
+            word_analyzer=self.word_analyzer,
+            learning_rate=0.1,
+            discount_factor=0.9,
+            exploration_rate=0.2
+        )
+        
+        # Set up confidence thresholds based on difficulty
+        self.confidence_thresholds = {
+            'easy': 0.3,
+            'medium': 0.5,
+            'hard': 0.7
+        }
+        
+        # Subscribe to relevant game events
+        self._setup_event_subscriptions()
+        logger.info(f"AIStrategy initialized with difficulty: {difficulty}")
         
         # Model weights based on difficulty
         self.model_weights = self._initialize_weights(difficulty)
@@ -36,8 +59,6 @@ class AIStrategy:
         # Performance tracking
         self.total_decisions = 0
         self.successful_words = 0
-        
-        self._setup_event_subscriptions()
 
     def _setup_event_subscriptions(self) -> None:
         """Set up event subscriptions for strategy updates."""
@@ -168,7 +189,7 @@ class AIStrategy:
             candidates.add(mcts_word)
         
         # Q-Learning candidates
-        q_word = self.q_learning.select_action(available_letters, self.valid_words, turn_number)
+        q_word = self.q_agent.select_action(available_letters, self.valid_words, turn_number)
         if q_word and self.word_validator.validate_word_with_letters(q_word, available_letters):
             candidates.add(q_word)
         

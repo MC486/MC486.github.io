@@ -27,18 +27,23 @@ def setup_logging():
     date_format = '%Y-%m-%d %H:%M:%S'
     
     # Configure file handler
-    file_handler = logging.FileHandler(log_file)
+    file_handler = logging.FileHandler(log_file, encoding='utf-8')
     file_handler.setFormatter(logging.Formatter(log_format, date_format))
     
     # Configure console handler
-    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler = logging.StreamHandler()
     console_handler.setFormatter(logging.Formatter(log_format, date_format))
+    console_handler.setStream(sys.stdout)
     
     # Configure root logger
     root_logger = logging.getLogger()
-    root_logger.setLevel(logging.INFO)
+    root_logger.setLevel(logging.DEBUG)
     root_logger.addHandler(file_handler)
     root_logger.addHandler(console_handler)
+    
+    # Set encoding for stdout
+    if sys.stdout.encoding != 'utf-8':
+        sys.stdout.reconfigure(encoding='utf-8')
     
     return log_file
 

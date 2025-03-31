@@ -1,8 +1,17 @@
 from typing import Dict, List, Set, Optional
 import math
 from collections import defaultdict
-from core.game_events import GameEvent, EventType, GameEventManager
+from core.game_events import GameEvent, EventType
+from core.game_events_manager import GameEventManager
 from ai.word_analysis import WordFrequencyAnalyzer
+import numpy as np
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.naive_bayes import MultinomialNB
+import logging
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, classification_report
+
+logger = logging.getLogger(__name__)
 
 class NaiveBayes:
     """
@@ -72,3 +81,21 @@ class NaiveBayes:
         # Combine probabilities with smoothing
         combined_prob = (word_prob + pattern_prob + self.word_analyzer.get_word_score(word)) / 3
         return max(0.01, combined_prob)  # Ensure non-zero probability
+
+    def train(self, words: List[str], labels: List[str]) -> None:
+        """
+        Train the Naive Bayes model on a list of words and their labels.
+        
+        Args:
+            words (List[str]): List of words to train on
+            labels (List[str]): List of labels for each word
+        """
+        for word, label in zip(words, labels):
+            if label == 'valid':
+                self._update_probabilities(word)
+                
+        self.event_manager.emit(GameEvent(
+            type=EventType.MODEL_STATE_UPDATE,
+            data={"message": "Naive Bayes model trained"},
+            debug_data={"word_count": len(words)}
+        ))

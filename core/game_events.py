@@ -23,13 +23,20 @@ class EventType(Enum):
     # AI events
     AI_TURN_START = "ai_turn_start"
     AI_WORD_SELECTED = "ai_word_selected"
+    AI_ACTION_STARTED = "ai_action_started"
+    AI_ACTION_COMPLETED = "ai_action_completed"
+    AI_ACTION_FAILED = "ai_action_failed"
     
     # Analysis events
     AI_ANALYSIS_START = "ai_analysis_start"
+    AI_ANALYSIS_COMPLETE = "ai_analysis_complete"
     AI_CANDIDATES_GENERATED = "ai_candidates_generated"
     AI_SCORING_UPDATE = "ai_scoring_update"
     AI_DECISION_MADE = "ai_decision_made"
     MODEL_STATE_UPDATE = "model_state_update"
+    
+    # Game settings events
+    DIFFICULTY_CHANGED = "difficulty_changed"
 
 @dataclass
 class GameEvent:

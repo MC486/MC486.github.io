@@ -1,8 +1,11 @@
-from typing import Dict, Set, Optional
+from typing import Dict, Set, Optional, List, Any
+import logging
 from core.game_events import GameEvent, EventType
 from core.game_events_manager import GameEventManager
 from ai.word_analysis import WordFrequencyAnalyzer
 from ai.strategy.ai_strategy import AIStrategy
+
+logger = logging.getLogger(__name__)
 
 class AIPlayer:
     """

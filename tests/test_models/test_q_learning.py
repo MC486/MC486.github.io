@@ -1,6 +1,8 @@
 import unittest
 from unittest.mock import Mock, patch
-from core.game_events import GameEvent, EventType, GameEventManager
+import pytest
+from core.game_events import GameEvent, EventType
+from core.game_events_manager import GameEventManager
 from ai.word_analysis import WordFrequencyAnalyzer
 from ai.models.q_learning import QLearningAgent
 

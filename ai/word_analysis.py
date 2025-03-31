@@ -4,6 +4,8 @@ import math
 from core.game_events import GameEvent, EventType
 from core.game_events_manager import GameEventManager
 from core.validation.word_validator import WordValidator
+from wordfreq import word_frequency
+import logging
 
 class WordFrequencyAnalyzer:
     """
@@ -28,6 +30,9 @@ class WordFrequencyAnalyzer:
         # Position-based letter frequencies
         self.position_frequencies: DefaultDict[int, DefaultDict[str, int]] = defaultdict(lambda: defaultdict(int))
         
+        # Store analyzed words
+        self.analyzed_words: Set[str] = set()
+        
         # Subscribe to relevant events
         self._setup_event_subscriptions()
 
@@ -50,12 +55,18 @@ class WordFrequencyAnalyzer:
         ))
         
         for word in words:
-            # Validate word before analysis
-            word = word.upper()
-            if self.word_validator.validate_word(word):
+            word = word.upper()  # Convert to uppercase before validation
+            if len(word) >= 3 and self.word_validator.validate_word(word):  # Enforce 3-letter minimum
                 self._analyze_single_word(word)
-            
+                self.analyzed_words.add(word)
+                
         self._calculate_probabilities()
+        
+        self.event_manager.emit(GameEvent(
+            type=EventType.AI_ANALYSIS_COMPLETE,
+            data={"message": "Word list analysis complete"},
+            debug_data={"word_count": len(self.analyzed_words)}
+        ))
 
     def _analyze_single_word(self, word: str) -> None:
         """
@@ -154,33 +165,89 @@ class WordFrequencyAnalyzer:
     def get_word_score(self, word: str) -> float:
         """
         Calculate a probability-based score for a word.
+        Higher scores indicate rarer/more interesting words.
         
         Args:
             word: Word to score
             
         Returns:
-            Probability score for the word
+            Score between 0 and 1, where higher scores indicate rarer words
         """
         word = word.upper()
         if not self.word_validator.validate_word(word):
             return 0.0
             
-        score = self.length_probabilities.get(len(word), 0.0)
-        
-        # Multiply by letter probabilities
-        for i, letter in enumerate(word):
-            score *= self.get_position_probability(letter, i)
+        # Get WordFreq frequency score
+        try:
+            freq = word_frequency(word.lower(), 'en')
+            # Convert frequency to a score between 0 and 1
+            # We want a bell curve that peaks for moderately common words:
+            # - Very rare words (freq < 1e-6) get low scores
+            # - Very common words (freq > 1e-2) get moderate scores
+            # - Moderately common words (freq around 1e-4) get highest scores
+            freq_log = -math.log10(freq) if freq > 0 else 12  # Convert to log scale
+            # Center the bell curve around frequency 1e-4 (log10 = -4)
+            freq_score = math.exp(-((freq_log + 4) ** 2) / 8)  # Bell curve with width parameter 8
+        except Exception as e:
+            logging.warning(f"Failed to get WordFreq score for {word}: {e}")
+            freq_score = 0.5  # Default to middle score if WordFreq fails
             
-            # Include transition probabilities
+        # Get base score from word length probability
+        length_prob = self.length_probabilities.get(len(word), 0.0)
+        if length_prob == 0:
+            return 0.0
+            
+        # Calculate letter position and transition scores
+        position_scores = []
+        transition_scores = []
+        
+        # Track if we've seen this word before
+        word_seen = word in self.analyzed_words
+        
+        for i, letter in enumerate(word):
+            # Get position probability
+            pos_prob = self.get_position_probability(letter, i)
+            # Use a small non-zero value for unknown positions
+            position_scores.append(pos_prob if pos_prob > 0 else 0.01)
+            
+            # Get transition probability
             if i < len(word) - 1:
-                score *= self.get_next_letter_probability(letter, word[i + 1])
+                trans_prob = self.get_next_letter_probability(letter, word[i + 1])
+                # Use a small non-zero value for unknown transitions
+                transition_scores.append(trans_prob if trans_prob > 0 else 0.01)
                 
-        return score
+        # Calculate average scores
+        avg_position_score = sum(position_scores) / len(position_scores)
+        avg_transition_score = sum(transition_scores) / len(transition_scores) if transition_scores else 0.5
+        
+        # Combine scores with weights
+        # Higher weights for known words and common letter combinations
+        final_score = (
+            0.2 * length_prob +
+            0.2 * avg_position_score +
+            0.2 * avg_transition_score +
+            0.3 * freq_score +  # WordFreq score has highest weight
+            0.1 * (1.0 if word_seen else 0.0)  # Bonus for words we've seen before
+        )
+        
+        # Normalize score to be between 0 and 1
+        final_score = min(1.0, max(0.0, final_score))
+        
+        # Log scoring details
+        logging.debug(f"Word: {word}")
+        logging.debug(f"  Length probability: {length_prob:.3f}")
+        logging.debug(f"  Average position score: {avg_position_score:.3f}")
+        logging.debug(f"  Average transition score: {avg_transition_score:.3f}")
+        logging.debug(f"  WordFreq score: {freq_score:.3f} (frequency: {freq:.6f})")
+        logging.debug(f"  Word seen before: {word_seen}")
+        logging.debug(f"  Final score: {final_score:.3f}")
+        
+        return final_score
 
     def _handle_word_submission(self, event: GameEvent) -> None:
         """Handle word submission events to update analysis."""
         word = event.data.get("word", "").upper()
-        if word and self.word_validator.validate_word(word):
+        if word and len(word) >= 3 and self.word_validator.validate_word(word):  # Enforce 3-letter minimum
             self._analyze_single_word(word)
             self._calculate_probabilities()
             
@@ -201,3 +268,12 @@ class WordFrequencyAnalyzer:
         self.position_frequencies.clear()
         self.total_letters = 0
         self.total_words = 0
+
+    def get_analyzed_words(self) -> List[str]:
+        """
+        Get the list of words that have been analyzed.
+        
+        Returns:
+            List[str]: List of analyzed words
+        """
+        return list(self.analyzed_words)

@@ -2,9 +2,12 @@
 # Unit test for player input handling.
 
 import unittest
+import pytest
 from unittest.mock import Mock, patch
+from core.game_events import GameEvent, EventType
+from core.game_events_manager import GameEventManager
 from engine.input_handler import InputHandler
-from core.game_events import GameEventManager, EventType
+from engine.game_state import GameState
 
 class TestInputHandler(unittest.TestCase):
     def setUp(self):
