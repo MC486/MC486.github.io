@@ -7,6 +7,7 @@ from collections import defaultdict
 from core.game_events import GameEvent, EventType
 from core.game_events_manager import GameEventManager
 from ai.word_analysis import WordFrequencyAnalyzer
+from ai.category_analysis import CategoryAnalyzer
 from ai.models.markov_chain import MarkovChain
 from ai.models.naive_bayes import NaiveBayes
 from ai.models.mcts import MCTS
@@ -35,6 +36,7 @@ class AIStrategy:
         self.event_manager = event_manager
         self.difficulty = difficulty
         self.word_analyzer = WordFrequencyAnalyzer(event_manager=event_manager)
+        self.category_analyzer = CategoryAnalyzer()
         self.trie = Trie()
         self.db_manager = DatabaseManager()
         self.word_repo = WordRepository(self.db_manager)
@@ -491,3 +493,57 @@ class AIStrategy:
             features.append(game_state['turn_number'])
             
         return features 
+
+    def get_word_score(self, word: str) -> float:
+        """
+        Calculate a combined score for a word using multiple factors.
+        
+        Args:
+            word: Word to score
+            
+        Returns:
+            Score between 0 and 1
+        """
+        if word in self.word_score_cache:
+            return self.word_score_cache[word]
+            
+        # Get base score from word analyzer
+        base_score = self.word_analyzer.get_word_score(word)
+        
+        # Get category score
+        category_score = self.category_analyzer.get_category_score(word)
+        
+        # Combine scores with weights
+        final_score = (
+            0.7 * base_score +  # Base score has higher weight
+            0.3 * category_score  # Category score
+        )
+        
+        # Cache the score
+        self.word_score_cache[word] = final_score
+        return final_score
+
+    def get_ai_stats(self) -> Dict[str, Any]:
+        """
+        Get statistics about AI performance and learning.
+        
+        Returns:
+            Dict containing AI statistics
+        """
+        stats = {
+            "word_analyzer": self.word_analyzer.get_analyzed_words(),
+            "category_stats": self.category_analyzer.get_category_stats(),
+            "used_words": list(self.used_words),
+            "word_success": dict(self.word_success),
+            "confidence_threshold": self.confidence_thresholds[self.difficulty]
+        }
+        
+        # Add model-specific stats
+        stats.update({
+            "markov_chain": self.markov_chain.get_stats(),
+            "naive_bayes": self.naive_bayes.get_stats(),
+            "mcts": self.mcts.get_stats(),
+            "q_learning": self.q_agent.get_stats()
+        })
+        
+        return stats 

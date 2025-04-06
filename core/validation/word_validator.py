@@ -4,11 +4,14 @@ from .trie import Trie
 from .trie_utils import TrieUtils
 import os
 import logging
+from database.repositories.word_repository import WordRepository
+from database.repositories.category_repository import CategoryRepository
+from database.manager import DatabaseManager
 
 logger = logging.getLogger(__name__)
 
 class WordValidator:
-    """Validates words using a Trie-based dictionary with NLTK words."""
+    """Validates words using a Trie-based dictionary with NLTK words and WordRepository."""
     
     def __init__(self, use_nltk: bool = True, custom_dictionary_path: Optional[str] = None):
         """Initialize the WordValidator.
@@ -19,6 +22,9 @@ class WordValidator:
         """
         self.trie = Trie()
         self.cache_path = None
+        self.db_manager = DatabaseManager()
+        self.word_repo = WordRepository(self.db_manager)
+        self.category_repo = CategoryRepository(self.db_manager)
         
         # Load custom dictionary first
         try:
@@ -42,6 +48,10 @@ class WordValidator:
             
             # Add common plural forms
             valid_words.update(self._get_common_plurals(valid_words))
+            
+            # Store words in repository
+            for word in valid_words:
+                self.word_repo.add_word(word)
             
             self.trie = TrieUtils.build_trie_from_words(valid_words)
 
@@ -179,29 +189,54 @@ class WordValidator:
             
         return True
 
-    def get_word_suggestions(self, prefix: str, max_suggestions: int = 10) -> List[str]:
-        """Get word suggestions starting with prefix.
+    def get_word_suggestions(self, prefix: str, category: Optional[str] = None, max_suggestions: int = 10) -> List[str]:
+        """Get word suggestions starting with the given prefix, optionally filtered by category.
         
         Args:
-            prefix: Starting characters
-            max_suggestions: Maximum number of suggestions
+            prefix: The prefix to search for
+            category: Optional category name to filter by
+            max_suggestions: Maximum number of suggestions to return
             
         Returns:
             List of suggested words
         """
-        if not prefix:
-            return []
-            
-        return self.trie.get_words_with_prefix(prefix, max_suggestions)
+        prefix = prefix.upper()
+        suggestions = set()
+        
+        # Get category ID if specified
+        category_id = None
+        if category:
+            category_record = self.category_repo.get_by_name(category)
+            if category_record:
+                category_id = category_record['id']
+        
+        # Get suggestions from repository
+        if category_id:
+            repo_suggestions = self.word_repo.get_by_category(category_id)
+            suggestions.update(word['word'] for word in repo_suggestions 
+                            if word['word'].startswith(prefix))
+        else:
+            repo_suggestions = self.word_repo.search_words(prefix + '%')
+            suggestions.update(word['word'] for word in repo_suggestions)
+        
+        # Get suggestions from trie
+        trie_suggestions = self.trie.get_words_with_prefix(prefix)
+        suggestions.update(trie_suggestions)
+        
+        return sorted(list(suggestions))[:max_suggestions]
 
     def get_dictionary_stats(self) -> dict:
-        """Get statistics about the loaded dictionary.
+        """Get statistics about the dictionary."""
+        repo_stats = self.word_repo.get_word_stats()
+        category_stats = self.category_repo.get_category_stats()
+        trie_stats = {
+            'total_words': len(self.trie.get_all_words()),
+            'max_length': max((len(word) for word in self.trie.get_all_words()), default=0),
+            'min_length': min((len(word) for word in self.trie.get_all_words()), default=0)
+        }
         
-        Returns:
-            Dictionary containing statistics
-        """
         return {
-            "total_words": self.trie.total_words,
-            "max_word_length": self.trie.max_word_length,
-            "memory_usage": TrieUtils.get_memory_usage(self.trie)
+            'repository': repo_stats,
+            'categories': category_stats,
+            'trie': trie_stats
         }

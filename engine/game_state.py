@@ -264,6 +264,30 @@ class GameState:
             duration = (self.end_time - self.start_time).total_seconds()
             print(f"Game Duration: {duration:.1f} seconds")
             
+        # Display AI learning statistics
+        ai_stats = self.get_ai_stats()
+        if ai_stats:
+            print("\n=== AI Learning Statistics ===")
+            print(f"Total Words Analyzed: {len(ai_stats.get('word_analyzer', []))}")
+            print(f"Words Used: {len(ai_stats.get('used_words', []))}")
+            
+            # Display category statistics
+            category_stats = ai_stats.get('category_stats', {})
+            if category_stats:
+                print("\n=== Category Statistics ===")
+                print(f"Total Categories: {category_stats.get('total_categories', 0)}")
+                print("\nCategory Word Counts:")
+                for category, count in category_stats.get('category_word_counts', {}).items():
+                    print(f"  {category}: {count} words")
+            
+            # Display model-specific statistics
+            print("\n=== Model Statistics ===")
+            for model, stats in ai_stats.items():
+                if model not in ['word_analyzer', 'category_stats', 'used_words', 'word_success', 'confidence_threshold']:
+                    print(f"\n{model.replace('_', ' ').title()}:")
+                    for key, value in stats.items():
+                        print(f"  {key}: {value}")
+            
         print("================\n")
 
     def process_ai_turn(self) -> None:
