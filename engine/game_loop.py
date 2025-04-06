@@ -72,4 +72,17 @@ class GameLoop:
             raise
         finally:
             self.state.display_game_over()
+            
+            # Display AI learning statistics
+            ai_stats = self.state.get_ai_stats()
+            if ai_stats:
+                print("\n=== AI Learning Statistics ===")
+                for model, stats in ai_stats.items():
+                    print(f"\n{model.upper()} Model:")
+                    for key, value in stats.items():
+                        print(f"  {key}: {value}")
+            
+            # Cleanup old entries
+            self.state.cleanup()
+            
             logger.info("Game loop ended")

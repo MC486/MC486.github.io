@@ -13,6 +13,8 @@ from ai.models.mcts import MCTS
 from ai.models.q_learning import QLearningAgent
 from core.validation.word_validator import WordValidator
 from core.validation.trie import Trie
+from database.repositories.word_repository import WordRepository
+from database.manager import DatabaseManager
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +36,9 @@ class AIStrategy:
         self.difficulty = difficulty
         self.word_analyzer = WordFrequencyAnalyzer(event_manager=event_manager)
         self.trie = Trie()
+        self.db_manager = DatabaseManager()
+        self.word_repo = WordRepository(self.db_manager)
+        self.word_validator = WordValidator(use_nltk=True)
         
         # Track word usage and success
         self.used_words = set()

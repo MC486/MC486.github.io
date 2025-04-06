@@ -9,6 +9,7 @@ from engine.game_loop import GameLoop
 from core.game_events import EventType
 from core.game_events_manager import GameEventManager
 from engine.game_state import GameState
+from database.manager import DatabaseManager
 
 def setup_logging():
     """
@@ -58,6 +59,11 @@ def main():
     logger.info(f"Log file: {log_file}")
     
     try:
+        # Initialize database manager
+        db_manager = DatabaseManager()
+        db_manager.initialize_database()
+        logger.info("Database initialized")
+        
         # Initialize and start game
         game_loop = GameLoop()
         game_loop.start()

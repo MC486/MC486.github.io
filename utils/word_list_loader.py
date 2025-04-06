@@ -5,6 +5,8 @@ import nltk
 from wordfreq import top_n_list
 import logging
 from core.validation.word_validator import WordValidator
+from database.repositories.word_repository import WordRepository
+from database.manager import DatabaseManager
 
 logger = logging.getLogger(__name__)
 
@@ -21,8 +23,10 @@ def load_word_list():
     if _cached_word_set is not None:
         return _cached_word_set
 
-    # Initialize word validator
+    # Initialize word validator and repository
     word_validator = WordValidator(use_nltk=True)
+    db_manager = DatabaseManager()
+    word_repo = WordRepository(db_manager)
     freq_words = set()
 
     # First try to load from wordfreq
@@ -33,6 +37,10 @@ def load_word_list():
         freq_words = {word.upper() for word in raw_words 
                      if word.isalpha() and 1 <= len(word) <= 15}
         logger.info(f"Loaded {len(freq_words)} valid words from wordfreq.")
+        
+        # Store words in repository
+        for word in freq_words:
+            word_repo.add_word(word)
     except Exception as e:
         logger.warning(f"wordfreq failed: {e}")
         freq_words = set()
@@ -50,20 +58,16 @@ def load_word_list():
         # Filter words to only include valid lengths and remove special characters
         nltk_words = {word.upper() for word in raw_words 
                      if word.isalpha() and 1 <= len(word) <= 15}
-        logger.info(f"Loaded {len(nltk_words)} valid words from nltk corpus.")
         
-        # Combine both sets
+        # Store NLTK words in repository
+        for word in nltk_words:
+            word_repo.add_word(word)
+        
+        # Combine word sets
         freq_words.update(nltk_words)
-        logger.info(f"Combined word list contains {len(freq_words)} unique words.")
-    except Exception as err:
-        logger.error(f"Unable to load NLTK word list: {err}")
+        logger.info(f"Loaded {len(nltk_words)} valid words from NLTK.")
+    except Exception as e:
+        logger.warning(f"NLTK failed: {e}")
 
-    # Validate all words using the validator
-    validated_words = set()
-    for word in freq_words:
-        if word_validator.validate_word(word):
-            validated_words.add(word)
-    logger.info(f"Final validated word list contains {len(validated_words)} words.")
-
-    _cached_word_set = validated_words
-    return validated_words
+    _cached_word_set = freq_words
+    return _cached_word_set

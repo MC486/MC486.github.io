@@ -10,6 +10,8 @@ from core.validation.word_validator import WordValidator
 from core.game_events import GameEvent, EventType
 from core.game_events_manager import GameEventManager
 from ai.ai_strategy import AIStrategy
+from database.manager import DatabaseManager
+from database.repositories.word_repository import WordRepository
 
 logger = logging.getLogger(__name__)
 
@@ -57,11 +59,22 @@ class GameState:
         self.shared_letters: List[str] = []
         self.boggle_letters: List[str] = []
         
-        # AI Strategy
-        self.ai_strategy = AIStrategy(event_manager, difficulty='medium')
+        # Initialize database manager
+        self.db_manager = DatabaseManager()
+        self.db_manager.initialize_database()
+        
+        # AI Strategy with database integration
+        self.ai_strategy = AIStrategy(
+            event_manager=event_manager,
+            difficulty='medium',
+            db_manager=self.db_manager
+        )
         
         # Setup event subscriptions
         self._setup_event_subscriptions()
+        
+        # New word repository
+        self.word_repo = WordRepository(self.db_manager)
         
     def _setup_event_subscriptions(self) -> None:
         """Setup all event subscriptions for game state management"""
@@ -303,3 +316,14 @@ class GameState:
         if self.human_player.last_played_word and ai_word == self.human_player.last_played_word:
             print(f"🤖 AI guessed your word! It was '{ai_word}'. 🤯")
             self.end_game()
+
+    def cleanup(self) -> None:
+        """Clean up old entries in repositories."""
+        if hasattr(self, 'ai_strategy'):
+            self.ai_strategy.cleanup()
+            
+    def get_ai_stats(self) -> Dict:
+        """Get AI learning statistics."""
+        if hasattr(self, 'ai_strategy'):
+            return self.ai_strategy.get_learning_stats()
+        return {}

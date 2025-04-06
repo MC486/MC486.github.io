@@ -153,6 +153,17 @@ CREATE INDEX IF NOT EXISTS idx_q_learning_backups_created_at ON q_learning_backu
 CREATE INDEX IF NOT EXISTS idx_q_learning_rewards_state_action ON q_learning_rewards(state_hash, action);
 CREATE INDEX IF NOT EXISTS idx_q_learning_rewards_created_at ON q_learning_rewards(created_at);
 
+-- Indexes for naive_bayes_words table
+CREATE INDEX IF NOT EXISTS idx_naive_bayes_word ON naive_bayes_words(word);
+CREATE INDEX IF NOT EXISTS idx_naive_bayes_pattern ON naive_bayes_words(pattern_type);
+CREATE INDEX IF NOT EXISTS idx_naive_bayes_updated ON naive_bayes_words(updated_at);
+
+-- Indexes for mcts_simulations table
+CREATE INDEX IF NOT EXISTS idx_mcts_state ON mcts_simulations(state);
+CREATE INDEX IF NOT EXISTS idx_mcts_action ON mcts_simulations(action);
+CREATE INDEX IF NOT EXISTS idx_mcts_reward ON mcts_simulations(reward);
+CREATE INDEX IF NOT EXISTS idx_mcts_updated ON mcts_simulations(updated_at);
+
 -- Trigger to update updated_at timestamp
 CREATE TRIGGER IF NOT EXISTS update_games_timestamp
 AFTER UPDATE ON games
@@ -224,4 +235,22 @@ CREATE TRIGGER IF NOT EXISTS update_markov_timestamp
     FOR EACH ROW
     BEGIN
         UPDATE markov_transitions SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+    END;
+
+-- Trigger for updating naive_bayes_words timestamp
+CREATE TRIGGER IF NOT EXISTS update_naive_bayes_timestamp
+    AFTER UPDATE ON naive_bayes_words
+    FOR EACH ROW
+    BEGIN
+        UPDATE naive_bayes_words SET updated_at = CURRENT_TIMESTAMP 
+        WHERE word = NEW.word AND (pattern_type = NEW.pattern_type OR pattern_type IS NULL);
+    END;
+
+-- Trigger for updating mcts_simulations timestamp
+CREATE TRIGGER IF NOT EXISTS update_mcts_timestamp
+    AFTER UPDATE ON mcts_simulations
+    FOR EACH ROW
+    BEGIN
+        UPDATE mcts_simulations SET updated_at = CURRENT_TIMESTAMP 
+        WHERE state = NEW.state AND action = NEW.action;
     END;

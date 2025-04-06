@@ -1,10 +1,13 @@
 # core/word_scoring.py
 # Scores words based on rarity and length, with progressive penalty for repeated use.
 
+from typing import Dict, List
 import logging
 from collections import Counter
 from core.letter_pool import WEIGHTED_ALPHABET
 from core.validation.word_validator import WordValidator
+from database.repositories.word_repository import WordRepository
+from database.manager import DatabaseManager
 
 logger = logging.getLogger(__name__)
 
@@ -16,8 +19,14 @@ letter_score_map = {
     for letter, count in _letter_frequencies.items()
 }
 
-# Initialize word validator
-_word_validator = WordValidator(use_nltk=True)
+class WordScoring:
+    """Handles word scoring and validation."""
+    
+    def __init__(self):
+        """Initialize the word scoring system."""
+        self.db_manager = DatabaseManager()
+        self.word_repo = WordRepository(self.db_manager)
+        self.word_validator = WordValidator(use_nltk=True)
 
 def score_word(word: str, repeat_count: int = 0) -> int:
     """

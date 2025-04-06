@@ -6,6 +6,8 @@ from collections import Counter
 from core.validation.word_validator import WordValidator
 from core.game_events import GameEvent, EventType
 from core.game_events_manager import GameEventManager
+from database.repositories.word_repository import WordRepository
+from database.manager import DatabaseManager
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +20,8 @@ class InputHandler:
             event_manager: The game's event manager for emitting events
         """
         self.event_manager = event_manager
+        self.db_manager = DatabaseManager()
+        self.word_repo = WordRepository(self.db_manager)
         self.word_validator = WordValidator(use_nltk=True)
         
     def get_player_word(self, game_state):
