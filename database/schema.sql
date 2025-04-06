@@ -74,6 +74,23 @@ CREATE TABLE IF NOT EXISTS markov_transitions (
     UNIQUE(current_state, next_state)
 );
 
+-- Create q_learning_backups table
+CREATE TABLE IF NOT EXISTS q_learning_backups (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create q_learning_rewards table
+CREATE TABLE IF NOT EXISTS q_learning_rewards (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    state_hash TEXT NOT NULL,
+    action TEXT NOT NULL,
+    reward REAL NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (state_hash, action) REFERENCES q_learning_states(state_hash, action) ON DELETE CASCADE
+);
+
 -- Indexes for games table
 CREATE INDEX IF NOT EXISTS idx_games_player_name ON games(player_name);
 CREATE INDEX IF NOT EXISTS idx_games_status ON games(status);
@@ -105,6 +122,14 @@ CREATE INDEX IF NOT EXISTS idx_markov_count ON markov_transitions(count);
 CREATE INDEX IF NOT EXISTS idx_markov_current_state ON markov_transitions(current_state);
 CREATE INDEX IF NOT EXISTS idx_markov_next_state ON markov_transitions(next_state);
 CREATE INDEX IF NOT EXISTS idx_markov_updated_at ON markov_transitions(updated_at);
+
+-- Create indexes for q_learning_backups table
+CREATE INDEX IF NOT EXISTS idx_q_learning_backups_name ON q_learning_backups(name);
+CREATE INDEX IF NOT EXISTS idx_q_learning_backups_created_at ON q_learning_backups(created_at);
+
+-- Create indexes for q_learning_rewards table
+CREATE INDEX IF NOT EXISTS idx_q_learning_rewards_state_action ON q_learning_rewards(state_hash, action);
+CREATE INDEX IF NOT EXISTS idx_q_learning_rewards_created_at ON q_learning_rewards(created_at);
 
 -- Trigger to update updated_at timestamp
 CREATE TRIGGER IF NOT EXISTS update_games_timestamp
