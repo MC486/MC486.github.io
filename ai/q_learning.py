@@ -7,6 +7,8 @@ import logging
 import os
 from dataclasses import dataclass
 from datetime import datetime
+import hashlib
+from database.repositories.q_learning_repository import QLearningRepository
 
 logger = logging.getLogger(__name__)
 
@@ -155,7 +157,7 @@ class QLearningAgent:
                  epsilon_decay: float = 0.995,
                  memory_size: int = 10000,
                  batch_size: int = 32,
-                 target_update_frequency: int = 100):
+                 repository: Optional[QLearningRepository] = None):
         """
         Initialize the Q-learning agent.
         
@@ -169,28 +171,29 @@ class QLearningAgent:
             epsilon_decay: Rate at which epsilon decays
             memory_size: Size of the replay buffer
             batch_size: Size of training batches
-            target_update_frequency: How often to update the target network
+            repository: QLearningRepository instance for persistent storage
         """
         self.state_size = state_size
         self.action_size = action_size
+        self.learning_rate = learning_rate
         self.gamma = gamma
         self.epsilon = epsilon
         self.epsilon_min = epsilon_min
         self.epsilon_decay = epsilon_decay
         self.batch_size = batch_size
-        self.target_update_frequency = target_update_frequency
-        self.training_steps = 0
         
-        # Initialize networks
-        self.q_network = QNetwork(state_size, action_size)
-        self.target_network = QNetwork(state_size, action_size)
-        self.target_network.model.set_weights(self.q_network.model.get_weights())
+        # Initialize repository
+        self.repository = repository
         
-        # Initialize replay buffer
+        # Initialize replay buffer for experience replay
         self.memory = ReplayBuffer(memory_size)
         
         # Initialize training metrics
         self.metrics_history = []
+        
+    def _hash_state(self, state: np.ndarray) -> str:
+        """Convert state array to a hash string."""
+        return hashlib.sha256(state.tobytes()).hexdigest()
         
     def choose_action(self, state: np.ndarray) -> int:
         """
@@ -203,9 +206,27 @@ class QLearningAgent:
             int: Chosen action
         """
         try:
-            if random.random() < self.epsilon:
+            state_hash = self._hash_state(state)
+            
+            # Get exploration rate from repository
+            state_stats = self.repository.get_state_stats(state_hash)
+            exploration_rate = state_stats['exploration_rate']
+            
+            # Use epsilon-greedy with repository-based exploration
+            if random.random() < max(self.epsilon, exploration_rate):
+                # Try to find least explored action
+                least_explored = self.repository.get_least_explored_action(state_hash)
+                if least_explored is not None:
+                    return int(least_explored)
                 return random.randrange(self.action_size)
-            return np.argmax(self.q_network.predict(state))
+                
+            # Get best action from repository
+            best_action = self.repository.get_best_action(state_hash)
+            if best_action is not None:
+                return int(best_action)
+                
+            return random.randrange(self.action_size)
+            
         except Exception as e:
             logger.error(f"Error choosing action: {str(e)}")
             return random.randrange(self.action_size)
@@ -223,48 +244,35 @@ class QLearningAgent:
         try:
             # Sample batch of experiences
             batch = self.memory.sample(self.batch_size)
-            states = np.array([x[0] for x in batch])
-            actions = np.array([x[1] for x in batch])
-            rewards = np.array([x[2] for x in batch])
-            next_states = np.array([x[3] for x in batch])
-            dones = np.array([x[4] for x in batch])
             
-            # Get current Q-values
-            current_q_values = self.q_network.predict(states)
-            
-            # Get next Q-values from target network
-            next_q_values = self.target_network.predict(next_states)
-            
-            # Update Q-values
-            for i in range(self.batch_size):
-                if dones[i]:
-                    current_q_values[i][actions[i]] = rewards[i]
-                else:
-                    current_q_values[i][actions[i]] = rewards[i] + \
-                        self.gamma * np.max(next_q_values[i])
-                        
-            # Train the network
-            metrics = self.q_network.train(states, current_q_values)
-            
-            # Update target network periodically
-            self.training_steps += 1
-            if self.training_steps % self.target_update_frequency == 0:
-                self.target_network.model.set_weights(self.q_network.model.get_weights())
+            # Process each experience
+            for state, action, reward, next_state, done in batch:
+                state_hash = self._hash_state(state)
+                next_state_hash = self._hash_state(next_state)
                 
-            # Decay epsilon
-            if self.epsilon > self.epsilon_min:
-                self.epsilon *= self.epsilon_decay
-                
+                # Update Q-value in repository
+                self.repository.record_state_action(
+                    state_hash=state_hash,
+                    action=str(action),
+                    reward=reward,
+                    next_state_hash=next_state_hash,
+                    learning_rate=self.learning_rate,
+                    discount_factor=self.gamma
+                )
+            
+            # Update epsilon
+            self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
+            
             # Record metrics
-            training_metrics = TrainingMetrics(
-                loss=metrics['loss'],
+            metrics = TrainingMetrics(
+                loss=0.0,  # Loss is now handled by repository
                 epsilon=self.epsilon,
                 memory_size=len(self.memory),
                 timestamp=datetime.now().isoformat()
             )
-            self.metrics_history.append(training_metrics)
+            self.metrics_history.append(metrics)
             
-            return training_metrics
+            return metrics
             
         except Exception as e:
             logger.error(f"Error in training: {str(e)}")
@@ -279,6 +287,31 @@ class QLearningAgent:
         """
         return self.metrics_history.copy()
         
+    def get_learning_stats(self) -> Dict:
+        """
+        Get learning statistics from the repository.
+        
+        Returns:
+            Dict: Learning statistics
+        """
+        if self.repository:
+            return self.repository.get_learning_stats()
+        return {}
+        
+    def cleanup_old_states(self, days: int = 30) -> int:
+        """
+        Clean up old states from the repository.
+        
+        Args:
+            days: Number of days after which to remove states
+            
+        Returns:
+            int: Number of states removed
+        """
+        if self.repository:
+            return self.repository.cleanup_old_states(days)
+        return 0
+
     def save(self, directory: str) -> None:
         """
         Save the agent's networks and state to disk.

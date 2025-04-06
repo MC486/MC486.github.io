@@ -1,87 +1,148 @@
 import unittest
+import numpy as np
 from unittest.mock import Mock, patch
-import pytest
-from core.game_events import GameEvent, EventType
-from core.game_events_manager import GameEventManager
-from ai.word_analysis import WordFrequencyAnalyzer
-from ai.models.q_learning import QLearningAgent
+from ai.q_learning import QLearningAgent, TrainingMetrics
+from database.repositories.q_learning_repository import QLearningRepository
 
 class TestQLearningAgent(unittest.TestCase):
     def setUp(self):
         """Set up test environment before each test"""
-        self.event_manager = Mock(spec=GameEventManager)
-        self.word_analyzer = Mock(spec=WordFrequencyAnalyzer)
-        self.agent = QLearningAgent(self.event_manager, self.word_analyzer)
+        self.state_size = 4
+        self.action_size = 2
+        self.repository = Mock(spec=QLearningRepository)
+        self.agent = QLearningAgent(
+            state_size=self.state_size,
+            action_size=self.action_size,
+            repository=self.repository
+        )
     
     def test_initialization(self):
         """Test proper initialization of the agent"""
-        self.assertIsNone(self.agent.current_state)
-        self.assertIsNone(self.agent.last_action)
+        self.assertEqual(self.agent.state_size, self.state_size)
+        self.assertEqual(self.agent.action_size, self.action_size)
+        self.assertEqual(self.agent.epsilon, 1.0)  # Default epsilon
+        self.assertEqual(self.agent.epsilon_min, 0.01)  # Default epsilon_min
+        self.assertEqual(self.agent.epsilon_decay, 0.995)  # Default epsilon_decay
+        self.assertEqual(self.agent.batch_size, 32)  # Default batch_size
+        self.assertEqual(self.agent.learning_rate, 0.001)  # Default learning_rate
+        self.assertEqual(self.agent.gamma, 0.99)  # Default gamma
         
-        # Verify event subscriptions
-        self.event_manager.subscribe.assert_any_call(
-            EventType.WORD_SUBMITTED, self.agent._handle_word_submission
-        )
-        self.event_manager.subscribe.assert_any_call(
-            EventType.GAME_START, self.agent._handle_game_start
-        )
-        self.event_manager.subscribe.assert_any_call(
-            EventType.TURN_START, self.agent._handle_turn_start
-        )
+    def test_state_hashing(self):
+        """Test state hashing functionality"""
+        state = np.array([1, 2, 3, 4])
+        hash1 = self.agent._hash_state(state)
+        hash2 = self.agent._hash_state(state)
+        
+        # Same state should produce same hash
+        self.assertEqual(hash1, hash2)
+        
+        # Different state should produce different hash
+        different_state = np.array([1, 2, 3, 5])
+        different_hash = self.agent._hash_state(different_state)
+        self.assertNotEqual(hash1, different_hash)
     
-    def test_state_representation(self):
-        """Test state representation generation"""
-        letters = {'a', 'b', 'c'}
-        state = self.agent._get_state_representation(letters)
-        self.assertEqual(state, 'abc')  # Should be sorted
+    def test_choose_action_exploration(self):
+        """Test action selection during exploration"""
+        state = np.array([1, 2, 3, 4])
+        state_hash = self.agent._hash_state(state)
+        
+        # Mock repository to return high exploration rate
+        self.repository.get_state_stats.return_value = {
+            'exploration_rate': 1.0,
+            'total_actions': 0
+        }
+        
+        # Force exploration by setting epsilon to 1
+        self.agent.epsilon = 1.0
+        
+        action = self.agent.choose_action(state)
+        
+        # Action should be within valid range
+        self.assertGreaterEqual(action, 0)
+        self.assertLess(action, self.action_size)
+        
+        # Repository should have been queried
+        self.repository.get_state_stats.assert_called_once_with(state_hash)
     
-    def test_q_value_update(self):
-        """Test Q-value updates"""
-        state = 'abc'
-        action = 'cab'
-        reward = 0.5
+    def test_choose_action_exploitation(self):
+        """Test action selection during exploitation"""
+        state = np.array([1, 2, 3, 4])
+        state_hash = self.agent._hash_state(state)
         
-        # Initial Q-value should be 0
-        self.assertEqual(self.agent.q_table[state][action], 0)
+        # Mock repository to return low exploration rate and best action
+        self.repository.get_state_stats.return_value = {
+            'exploration_rate': 0.0,
+            'total_actions': 1
+        }
+        self.repository.get_best_action.return_value = "1"
         
-        # Update Q-value
-        self.agent.current_state = state
-        self.agent._update_q_value(state, action, reward)
+        # Force exploitation by setting epsilon to 0
+        self.agent.epsilon = 0.0
         
-        # Q-value should be updated
-        self.assertGreater(self.agent.q_table[state][action], 0)
+        action = self.agent.choose_action(state)
+        
+        # Action should be the best action from repository
+        self.assertEqual(action, 1)
+        
+        # Repository should have been queried
+        self.repository.get_state_stats.assert_called_once_with(state_hash)
+        self.repository.get_best_action.assert_called_once_with(state_hash)
     
-    def test_action_selection(self):
-        """Test action selection with exploration and exploitation"""
-        available_letters = {'c', 'a', 't'}
-        valid_words = {'cat', 'act'}
+    def test_train(self):
+        """Test training process"""
+        # Create a batch of experiences
+        batch = [
+            (np.array([1, 2, 3, 4]), 0, 1.0, np.array([2, 3, 4, 5]), False),
+            (np.array([2, 3, 4, 5]), 1, -1.0, np.array([3, 4, 5, 6]), True)
+        ]
         
-        # Test exploitation (force it by setting exploration_rate to 0)
-        self.agent.exploration_rate = 0
-        action = self.agent.select_action(available_letters, valid_words)
-        self.assertIn(action, valid_words)
+        # Mock memory to return the batch
+        self.agent.memory.sample = Mock(return_value=batch)
+        self.agent.memory.__len__ = Mock(return_value=self.agent.batch_size)
         
-        # Test exploration (force it by setting exploration_rate to 1)
-        self.agent.exploration_rate = 1
-        action = self.agent.select_action(available_letters, valid_words)
-        self.assertIn(action, valid_words)
+        # Mock repository methods
+        self.repository.record_state_action = Mock()
+        
+        # Perform training
+        metrics = self.agent.train()
+        
+        # Verify metrics
+        self.assertIsInstance(metrics, TrainingMetrics)
+        self.assertEqual(metrics.loss, 0.0)  # Loss is handled by repository
+        self.assertLess(metrics.epsilon, 1.0)  # Epsilon should have decayed
+        self.assertEqual(metrics.memory_size, self.agent.batch_size)
+        
+        # Verify repository calls
+        self.assertEqual(self.repository.record_state_action.call_count, len(batch))
+        
+        # Verify epsilon decay
+        self.assertLess(self.agent.epsilon, 1.0)
     
-    def test_word_submission_handling(self):
-        """Test Q-value updates on word submission"""
-        # Setup initial state
-        self.agent.current_state = 'abc'
-        self.agent.last_action = 'cab'
+    def test_get_learning_stats(self):
+        """Test getting learning statistics"""
+        # Mock repository to return stats
+        expected_stats = {
+            'total_states': 10,
+            'total_actions': 20,
+            'average_q_value': 0.5
+        }
+        self.repository.get_learning_stats.return_value = expected_stats
         
-        # Submit a word with score
-        event = Mock(spec=GameEvent)
-        event.data = {"word": "cab", "score": 10}
-        self.agent._handle_word_submission(event)
+        stats = self.agent.get_learning_stats()
         
-        # Q-value should be updated
-        self.assertGreater(
-            self.agent.q_table[self.agent.current_state][self.agent.last_action],
-            0
-        )
+        self.assertEqual(stats, expected_stats)
+        self.repository.get_learning_stats.assert_called_once()
+    
+    def test_cleanup_old_states(self):
+        """Test cleaning up old states"""
+        days = 30
+        expected_removed = 5
+        self.repository.cleanup_old_states.return_value = expected_removed
+        
+        removed = self.agent.cleanup_old_states(days)
+        
+        self.assertEqual(removed, expected_removed)
+        self.repository.cleanup_old_states.assert_called_once_with(days)
 
 if __name__ == '__main__':
     unittest.main()
