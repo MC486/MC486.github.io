@@ -7,7 +7,7 @@ from .repositories.category_repository import CategoryRepository
 from .repositories.naive_bayes_repository import NaiveBayesRepository
 from .repositories.mcts_repository import MCTSRepository
 from .repositories.q_learning_repository import QLearningRepository
-from .repositories.markov_chain_repository import MarkovChainRepository
+from .repositories.markov_repository import MarkovChainRepository
 
 logger = logging.getLogger(__name__)
 
