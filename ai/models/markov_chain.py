@@ -3,11 +3,12 @@
 import random
 import logging
 from collections import defaultdict
-from typing import List, Dict, Set, Optional, Tuple
+from typing import List, Dict, Set, Optional, Tuple, Any
 from core.game_events import GameEvent, EventType
 from core.game_events_manager import GameEventManager
 from ai.word_analysis import WordFrequencyAnalyzer
 from core.validation.trie import Trie
+from database.repositories.markov_repository import MarkovRepository
 
 
 class MarkovChain:
@@ -19,11 +20,13 @@ class MarkovChain:
                  event_manager: GameEventManager,
                  word_analyzer: WordFrequencyAnalyzer,
                  trie: Trie,
+                 markov_repository: MarkovRepository,
                  order: int = 2):
         self.event_manager = event_manager
         self.word_analyzer = word_analyzer
         self.trie = trie
         self.order = order
+        self.markov_repository = markov_repository
         self.transitions: Dict[str, Dict[str, float]] = {}
         self.start_probabilities: Dict[str, float] = {}
         
@@ -60,138 +63,70 @@ class MarkovChain:
             for next_char in self.transitions[current]:
                 self.transitions[current][next_char] /= total
                 
-    def generate_word(self, 
-                     available_letters: List[str], 
-                     prefix: str = "",
-                     max_length: int = 15) -> Optional[str]:
-        """
-        Generate a word using Markov Chain and available letters.
-        Uses Trie for validation and prefix guidance.
-        Each letter can only be used once from the available pool.
-        
-        Args:
-            available_letters: List of available letters
-            prefix: Optional prefix to start with
-            max_length: Maximum word length
-            
-        Returns:
-            Generated word or None if no valid word found
-        """
-        min_length = 3  # Minimum word length requirement
-        available_letters = [letter.upper() for letter in available_letters]  # Convert to list to handle duplicates
+    def generate_word(self, available_letters: str, prefix: str = "") -> str:
+        """Generate a word based on available letters and optional prefix"""
+        available_letters = available_letters.upper()
         prefix = prefix.upper()
         
-        logging.info(f"Markov Chain generating word with letters: {available_letters}")
-        if prefix:
-            logging.info(f"Using prefix: {prefix}")
+        # Get transitions from repository
+        transitions = self.markov_repository.get_transitions()
         
-        # If prefix provided, validate it and remove used letters
-        if prefix:
-            if not self.trie.starts_with(prefix):
-                logging.debug(f"Invalid prefix: {prefix}")
-                return None
-            # Remove letters used in prefix from available letters
-            for letter in prefix:
-                if letter in available_letters:
-                    available_letters.remove(letter)
-            
-        # Try multiple times to generate a valid word
-        for attempt in range(50):  # Increased from 10 to 50 attempts
-            current_word = prefix
-            remaining_letters = available_letters.copy()
-            
-            # Start with a common prefix if no prefix provided
-            if not current_word:
-                # Try all possible 2-letter combinations as starts
-                valid_starts = []
-                for i in range(len(remaining_letters)):
-                    for j in range(i + 1, len(remaining_letters)):
-                        start = remaining_letters[i] + remaining_letters[j]
-                        if self.trie.starts_with(start):
-                            valid_starts.append(start)
-                            
-                if not valid_starts:
-                    logging.debug(f"Attempt {attempt + 1}: No valid starts found")
-                    continue
-                    
-                # Choose start randomly from valid starts
-                current_word = random.choice(valid_starts)
-                logging.debug(f"Attempt {attempt + 1}: Chose start: {current_word}")
-                # Remove letters used in start
-                for letter in current_word:
-                    if letter in remaining_letters:
-                        remaining_letters.remove(letter)
-            
-            # Generate rest of the word
-            while len(current_word) < max_length and remaining_letters:
-                current = current_word[-self.order:] if len(current_word) >= self.order else current_word
-                
-                # Get valid next characters (only from remaining letters)
-                valid_next = []
-                for letter in remaining_letters:
-                    next_word = current_word + letter
-                    # Only consider letters that lead to valid words
-                    if self.trie.starts_with(next_word):
-                        # Check if this could lead to a complete word
-                        if self.trie.search(next_word) or any(self.trie.starts_with(next_word + l) for l in remaining_letters):
-                            valid_next.append(letter)
-                
-                if not valid_next:
-                    # No valid next characters, check if current word is valid
-                    if len(current_word) >= min_length and self.trie.search(current_word):
-                        logging.info(f"Generated valid word: {current_word}")
-                        return current_word
-                    logging.debug(f"Attempt {attempt + 1}: No valid next characters for: {current_word}")
+        # If no transitions in repository, use local transitions
+        if not transitions:
+            transitions = self.transitions
+        
+        # Start with prefix if provided
+        current = prefix[-self.order:] if prefix else ""
+        word = prefix
+        
+        # Generate word
+        while len(word) < 15:  # Maximum word length
+            # Get possible next characters
+            if current in transitions:
+                next_chars = [c for c in transitions[current].keys() 
+                            if c in available_letters and c not in word]
+                if not next_chars:
                     break
                     
-                # Choose next character based on transition probabilities
-                if current in self.transitions:
-                    valid_transitions = {
-                        char: prob for char, prob in self.transitions[current].items()
-                        if char in valid_next
-                    }
-                    if valid_transitions:
-                        next_char = random.choices(
-                            list(valid_transitions.keys()),
-                            weights=list(valid_transitions.values())
-                        )[0]
-                        current_word += next_char
-                        if next_char in remaining_letters:
-                            remaining_letters.remove(next_char)
-                        logging.debug(f"Attempt {attempt + 1}: Added {next_char} -> {current_word}")
-                        continue
-                        
-                # If no valid transitions, choose randomly from valid next characters
-                next_char = random.choice(valid_next)
-                current_word += next_char
-                if next_char in remaining_letters:
-                    remaining_letters.remove(next_char)
-                logging.debug(f"Attempt {attempt + 1}: Randomly added {next_char} -> {current_word}")
-                    
-            # Check if we have a valid word of minimum length
-            if len(current_word) >= min_length and self.trie.search(current_word):
-                logging.info(f"Generated valid word: {current_word}")
-                return current_word
-                
-        logging.warning("Failed to generate valid word after 50 attempts")
-        return None
+                # Choose next character based on probabilities
+                probs = [transitions[current][c] for c in next_chars]
+                next_char = random.choices(next_chars, weights=probs)[0]
+            else:
+                # If no transitions for current state, choose random available letter
+                next_chars = [c for c in available_letters if c not in word]
+                if not next_chars:
+                    break
+                next_char = random.choice(next_chars)
+            
+            word += next_char
+            current = word[-self.order:]
+            
+            # Check if word is valid
+            if self.trie.is_word(word):
+                return word
+        
+        return word
         
     def update(self, word: str, score: float) -> None:
         """Update model based on word success"""
         # Update transition probabilities based on successful words
         if score > 0:
             word = word.upper()
+            transitions = []
             for i in range(len(word) - self.order):
                 current = word[i:i+self.order]
                 next_char = word[i+self.order]
-                
+                transitions.append((current, next_char, int(score * 100)))
+            
+            # Bulk update transitions in repository
+            self.markov_repository.bulk_update_transitions(transitions)
+            
+            # Update local transitions
+            for current, next_char, count in transitions:
                 if current not in self.transitions:
                     self.transitions[current] = {}
-                    
-                # Increase probability for successful transition
-                total = sum(self.transitions[current].values())
                 self.transitions[current][next_char] = \
-                    self.transitions[current].get(next_char, 0) + score / total
+                    self.transitions[current].get(next_char, 0) + count
 
     def train(self, words: List[str]) -> None:
         """
@@ -208,3 +143,57 @@ class MarkovChain:
             data={"message": "Markov Chain model trained"},
             debug_data={"word_count": len(words)}
         ))
+
+    def get_model_stats(self) -> Dict[str, Any]:
+        """Get overall statistics about the model"""
+        # Get stats from repository
+        repo_stats = self.markov_repository.get_learning_stats()
+        
+        # Combine with local stats
+        stats = {
+            "order": self.order,
+            "total_states": len(self.transitions),
+            "total_transitions": sum(len(trans) for trans in self.transitions.values()),
+            "repository_stats": repo_stats
+        }
+        
+        return stats
+
+    def cleanup(self, days: int = 30) -> None:
+        """Cleanup old entries from the repository"""
+        self.markov_repository.cleanup_old_entries(days)
+
+    def save(self) -> None:
+        """Save the model to the repository"""
+        self.markov_repository.bulk_record_transitions(self.transitions)
+
+    def load(self) -> None:
+        """Load the model from the repository"""
+        transitions = self.markov_repository.get_transitions()
+        if transitions:
+            self.transitions = transitions
+
+    def get_start_probability(self, start: str) -> float:
+        """Get the probability of starting with a given state"""
+        # Try to get from repository first
+        prob = self.markov_repository.get_start_probability(start)
+        if prob is not None:
+            return prob
+            
+        # Fall back to local start probabilities
+        return self.start_probabilities.get(start, 0.0)
+
+    def get_state_stats(self, state: str) -> Dict[str, Any]:
+        """Get statistics for a given state"""
+        # Try to get from repository first
+        stats = self.markov_repository.get_state_stats(state)
+        if stats:
+            return stats
+            
+        # Fall back to local transitions
+        if state in self.transitions:
+            return {
+                "total_transitions": len(self.transitions[state]),
+                "transitions": self.transitions[state]
+            }
+        return {"total_transitions": 0, "transitions": {}}
