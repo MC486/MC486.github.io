@@ -99,97 +99,161 @@ class DatabaseManager:
         with self.get_connection() as conn:
             cursor = conn.cursor()
             
-            # AI Domain Tables
+            # Create games table
             cursor.execute("""
-                CREATE TABLE IF NOT EXISTS markov_transitions (
+                CREATE TABLE IF NOT EXISTS games (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    current_state TEXT NOT NULL,
-                    next_state TEXT NOT NULL,
-                    probability REAL NOT NULL,
-                    count INTEGER DEFAULT 1,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-            
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS q_learning_states (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    state_hash TEXT NOT NULL UNIQUE,
-                    value REAL NOT NULL,
-                    visit_count INTEGER DEFAULT 0,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-            
-            # Game Domain Tables
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS game_sessions (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    player_id INTEGER NOT NULL,
-                    start_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    end_time TIMESTAMP,
-                    score INTEGER DEFAULT 0,
-                    status TEXT DEFAULT 'active'
-                )
-            """)
-            
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS game_turns (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    session_id INTEGER REFERENCES game_sessions(id),
-                    turn_number INTEGER NOT NULL,
-                    word TEXT,
+                    player_name TEXT NOT NULL,
+                    difficulty TEXT NOT NULL,
+                    max_attempts INTEGER NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'in_progress',
                     score INTEGER,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    start_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    end_time TIMESTAMP,
+                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    CHECK (difficulty IN ('easy', 'medium', 'hard')),
+                    CHECK (status IN ('in_progress', 'completed', 'abandoned')),
+                    CHECK (max_attempts > 0)
                 )
             """)
             
-            # Dictionary Domain Tables
+            # Create game moves table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS game_moves (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    game_id INTEGER NOT NULL,
+                    word TEXT NOT NULL,
+                    is_valid BOOLEAN NOT NULL,
+                    feedback TEXT NOT NULL,
+                    timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (game_id) REFERENCES games(id) ON DELETE CASCADE
+                )
+            """)
+            
+            # Create words table
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS words (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     word TEXT NOT NULL UNIQUE,
                     category_id INTEGER,
                     frequency INTEGER DEFAULT 0,
-                    confidence REAL DEFAULT 1.0
+                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL
                 )
             """)
             
+            # Create categories table
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS categories (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     name TEXT NOT NULL UNIQUE,
-                    description TEXT
+                    description TEXT,
+                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
                 )
             """)
             
-            # Metrics Domain Tables
+            # Create AI metrics table
             cursor.execute("""
-                CREATE TABLE IF NOT EXISTS performance_metrics (
+                CREATE TABLE IF NOT EXISTS ai_metrics (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    metric_name TEXT NOT NULL,
-                    value REAL NOT NULL,
-                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    context TEXT
+                    game_id INTEGER NOT NULL,
+                    move_number INTEGER NOT NULL,
+                    response_time REAL NOT NULL,
+                    confidence_score REAL NOT NULL,
+                    strategy_used TEXT NOT NULL,
+                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (game_id) REFERENCES games(id) ON DELETE CASCADE
                 )
             """)
             
+            # Create dictionary domains table
             cursor.execute("""
-                CREATE TABLE IF NOT EXISTS system_errors (
+                CREATE TABLE IF NOT EXISTS dictionary_domains (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    error_type TEXT NOT NULL,
-                    message TEXT NOT NULL,
-                    stack_trace TEXT,
-                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    context TEXT
+                    name TEXT NOT NULL UNIQUE,
+                    description TEXT,
+                    word_count INTEGER DEFAULT 0,
+                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
                 )
             """)
             
             # Create indexes
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_markov_current_state ON markov_transitions(current_state)")
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_q_learning_state_hash ON q_learning_states(state_hash)")
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_game_sessions_player ON game_sessions(player_id)")
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_words_category ON words(category_id)")
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_performance_metrics_name ON performance_metrics(metric_name)")
+            self._create_indexes(cursor)
+            
+            # Create triggers
+            self._create_triggers(cursor)
+            
+            conn.commit()
+            
+    def _create_indexes(self, cursor: Cursor) -> None:
+        """Create necessary indexes."""
+        # Games table indexes
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_games_player_name ON games(player_name)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_games_status ON games(status)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_games_difficulty ON games(difficulty)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_games_start_time ON games(start_time)")
+        
+        # Game moves indexes
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_game_moves_game_id ON game_moves(game_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_game_moves_timestamp ON game_moves(timestamp)")
+        
+        # Words table indexes
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_words_word ON words(word)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_words_category ON words(category_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_words_frequency ON words(frequency)")
+        
+        # Categories table indexes
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_categories_name ON categories(name)")
+        
+        # AI metrics indexes
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_ai_metrics_game ON ai_metrics(game_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_ai_metrics_time ON ai_metrics(created_at)")
+        
+        # Dictionary domains indexes
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_domains_name ON dictionary_domains(name)")
+        
+    def _create_triggers(self, cursor: Cursor) -> None:
+        """Create necessary triggers."""
+        # Update timestamps for games
+        cursor.execute("""
+            CREATE TRIGGER IF NOT EXISTS update_games_timestamp
+            AFTER UPDATE ON games
+            BEGIN
+                UPDATE games SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+            END;
+        """)
+        
+        # Update timestamps for words
+        cursor.execute("""
+            CREATE TRIGGER IF NOT EXISTS update_words_timestamp
+            AFTER UPDATE ON words
+            BEGIN
+                UPDATE words SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+            END;
+        """)
+        
+        # Update timestamps for categories
+        cursor.execute("""
+            CREATE TRIGGER IF NOT EXISTS update_categories_timestamp
+            AFTER UPDATE ON categories
+            BEGIN
+                UPDATE categories SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+            END;
+        """)
+        
+        # Update word count in dictionary domains
+        cursor.execute("""
+            CREATE TRIGGER IF NOT EXISTS update_domain_word_count
+            AFTER INSERT ON words
+            BEGIN
+                UPDATE dictionary_domains 
+                SET word_count = word_count + 1,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = NEW.domain_id;
+            END;
+        """)
