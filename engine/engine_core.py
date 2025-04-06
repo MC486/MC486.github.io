@@ -10,6 +10,7 @@ from core.game_events import EventType
 from core.game_events_manager import GameEventManager
 from engine.game_state import GameState
 from database.manager import DatabaseManager
+from database.repository_manager import RepositoryManager
 
 def setup_logging():
     """
@@ -63,6 +64,14 @@ def main():
         db_manager = DatabaseManager()
         db_manager.initialize_database()
         logger.info("Database initialized")
+        
+        # Initialize repository manager
+        repo_manager = RepositoryManager(db_manager)
+        logger.info("Repository manager initialized")
+        
+        # Perform initial cleanup
+        repo_manager.cleanup_old_entries(force=True)
+        logger.info("Initial repository cleanup completed")
         
         # Initialize and start game
         game_loop = GameLoop()

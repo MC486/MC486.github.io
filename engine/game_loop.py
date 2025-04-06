@@ -7,6 +7,8 @@ from engine.game_state import GameState
 from engine.input_handler import InputHandler
 from core.game_events import EventType
 from core.game_events_manager import GameEventManager
+from database.manager import DatabaseManager
+from database.repository_manager import RepositoryManager
 
 logger = logging.getLogger(__name__)
 
@@ -15,8 +17,18 @@ class GameLoop:
         """
         Initializes the game loop components.
         """
+        # Initialize managers
         self.event_manager = GameEventManager()
-        self.state = GameState(self.event_manager)
+        self.db_manager = DatabaseManager()
+        self.db_manager.initialize_database()
+        self.repo_manager = RepositoryManager(self.db_manager)
+        
+        # Initialize game components
+        self.state = GameState(
+            event_manager=self.event_manager,
+            db_manager=self.db_manager,
+            repo_manager=self.repo_manager
+        )
         self.input_handler = InputHandler(self.event_manager)
         
         # Setup event subscriptions

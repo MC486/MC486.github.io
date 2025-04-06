@@ -14,8 +14,8 @@ from ai.models.mcts import MCTS
 from ai.models.q_learning import QLearningAgent
 from core.validation.word_validator import WordValidator
 from core.validation.trie import Trie
-from database.repositories.word_repository import WordRepository
 from database.manager import DatabaseManager
+from database.repository_manager import RepositoryManager
 
 logger = logging.getLogger(__name__)
 
@@ -25,21 +25,35 @@ class AIStrategy:
     Uses a combination of Markov Chain, MCTS, Naive Bayes, and Q-learning.
     """
     
-    def __init__(self, event_manager: GameEventManager, difficulty: str = 'medium'):
+    def __init__(self, event_manager: GameEventManager, difficulty: str = 'medium', db_manager: DatabaseManager = None, repo_manager: RepositoryManager = None):
         """
         Initialize the AI strategy with all components.
         
         Args:
             event_manager (GameEventManager): Event manager for game events
             difficulty (str): Game difficulty level ('easy', 'medium', 'hard')
+            db_manager (DatabaseManager, optional): Database manager instance
+            repo_manager (RepositoryManager, optional): Repository manager instance
         """
         self.event_manager = event_manager
         self.difficulty = difficulty
+        
+        # Initialize database and repository managers
+        self.db_manager = db_manager or DatabaseManager()
+        self.repo_manager = repo_manager or RepositoryManager(self.db_manager)
+        
+        # Get repositories
+        self.word_repo = self.repo_manager.get_repository('word')
+        self.category_repo = self.repo_manager.get_repository('category')
+        self.naive_bayes_repo = self.repo_manager.get_repository('naive_bayes')
+        self.mcts_repo = self.repo_manager.get_repository('mcts')
+        self.q_learning_repo = self.repo_manager.get_repository('q_learning')
+        self.markov_chain_repo = self.repo_manager.get_repository('markov_chain')
+        
+        # Initialize analyzers
         self.word_analyzer = WordFrequencyAnalyzer(event_manager=event_manager)
         self.category_analyzer = CategoryAnalyzer()
         self.trie = Trie()
-        self.db_manager = DatabaseManager()
-        self.word_repo = WordRepository(self.db_manager)
         self.word_validator = WordValidator(use_nltk=True)
         
         # Track word usage and success
@@ -52,24 +66,30 @@ class AIStrategy:
         # Initialize word list
         self._initialize_word_list()
         
-        # Initialize AI components
+        # Initialize AI components with repositories
         self.markov_chain = MarkovChain(
             event_manager=event_manager,
             word_analyzer=self.word_analyzer,
             trie=self.trie,
-            order=2
+            order=2,
+            repository=self.markov_chain_repo
         )
-        self.mcts = MCTS(valid_words=set(self.word_analyzer.get_analyzed_words()))
+        self.mcts = MCTS(
+            valid_words=set(self.word_analyzer.get_analyzed_words()),
+            repository=self.mcts_repo
+        )
         self.naive_bayes = NaiveBayes(
             event_manager=event_manager,
-            word_analyzer=self.word_analyzer
+            word_analyzer=self.word_analyzer,
+            repository=self.naive_bayes_repo
         )
         self.q_agent = QLearningAgent(
             event_manager=event_manager,
             word_analyzer=self.word_analyzer,
             learning_rate=0.1,
             discount_factor=0.9,
-            exploration_rate=0.2
+            exploration_rate=0.2,
+            repository=self.q_learning_repo
         )
         
         # Set up confidence thresholds based on difficulty

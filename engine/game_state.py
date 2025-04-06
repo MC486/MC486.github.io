@@ -11,7 +11,7 @@ from core.game_events import GameEvent, EventType
 from core.game_events_manager import GameEventManager
 from ai.ai_strategy import AIStrategy
 from database.manager import DatabaseManager
-from database.repositories.word_repository import WordRepository
+from database.repository_manager import RepositoryManager
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +40,15 @@ class GameState:
     Manages the current game state and handles game progress.
     Integrates event system while maintaining original functionality.
     """
-    def __init__(self, event_manager: GameEventManager):
+    def __init__(self, event_manager: GameEventManager, db_manager: DatabaseManager = None, repo_manager: RepositoryManager = None):
+        """
+        Initialize the game state.
+        
+        Args:
+            event_manager (GameEventManager): Event manager for game events
+            db_manager (DatabaseManager, optional): Database manager instance
+            repo_manager (RepositoryManager, optional): Repository manager instance
+        """
         # Original initialization
         self.word_validator = WordValidator(use_nltk=True)
         self.is_game_over = False
@@ -59,22 +67,27 @@ class GameState:
         self.shared_letters: List[str] = []
         self.boggle_letters: List[str] = []
         
-        # Initialize database manager
-        self.db_manager = DatabaseManager()
-        self.db_manager.initialize_database()
+        # Initialize database and repository managers
+        self.db_manager = db_manager or DatabaseManager()
+        if not db_manager:
+            self.db_manager.initialize_database()
+        self.repo_manager = repo_manager or RepositoryManager(self.db_manager)
         
         # AI Strategy with database integration
         self.ai_strategy = AIStrategy(
             event_manager=event_manager,
             difficulty='medium',
-            db_manager=self.db_manager
+            db_manager=self.db_manager,
+            repo_manager=self.repo_manager
         )
         
         # Setup event subscriptions
         self._setup_event_subscriptions()
         
-        # New word repository
-        self.word_repo = WordRepository(self.db_manager)
+        # Get repositories
+        self.word_repo = self.repo_manager.get_repository('word')
+        
+        logger.info("GameState initialized with repository manager")
         
     def _setup_event_subscriptions(self) -> None:
         """Setup all event subscriptions for game state management"""
@@ -343,11 +356,20 @@ class GameState:
 
     def cleanup(self) -> None:
         """Clean up old entries in repositories."""
-        if hasattr(self, 'ai_strategy'):
-            self.ai_strategy.cleanup()
+        try:
+            self.repo_manager.cleanup_old_entries()
+            logger.info("Repository cleanup completed")
+        except Exception as e:
+            logger.error(f"Error during repository cleanup: {str(e)}")
             
     def get_ai_stats(self) -> Dict:
         """Get AI learning statistics."""
         if hasattr(self, 'ai_strategy'):
-            return self.ai_strategy.get_learning_stats()
+            stats = self.ai_strategy.get_learning_stats()
+            
+            # Add repository statistics
+            repo_stats = self.repo_manager.get_repository_stats()
+            stats['repositories'] = repo_stats
+            
+            return stats
         return {}
