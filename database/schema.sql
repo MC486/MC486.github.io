@@ -63,6 +63,17 @@ CREATE TABLE IF NOT EXISTS dictionary_domains (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Markov transitions table
+CREATE TABLE IF NOT EXISTS markov_transitions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    current_state TEXT NOT NULL,
+    next_state TEXT NOT NULL,
+    count INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(current_state, next_state)
+);
+
 -- Indexes for games table
 CREATE INDEX IF NOT EXISTS idx_games_player_name ON games(player_name);
 CREATE INDEX IF NOT EXISTS idx_games_status ON games(status);
@@ -87,6 +98,13 @@ CREATE INDEX IF NOT EXISTS idx_ai_metrics_move_number ON ai_metrics(move_number)
 -- Indexes for dictionary domains table
 CREATE INDEX IF NOT EXISTS idx_domains_name ON dictionary_domains(name);
 CREATE INDEX IF NOT EXISTS idx_domains_word_count ON dictionary_domains(word_count);
+
+-- Indexes for markov_transitions table
+CREATE INDEX IF NOT EXISTS idx_markov_state_pair ON markov_transitions(current_state, next_state);
+CREATE INDEX IF NOT EXISTS idx_markov_count ON markov_transitions(count);
+CREATE INDEX IF NOT EXISTS idx_markov_current_state ON markov_transitions(current_state);
+CREATE INDEX IF NOT EXISTS idx_markov_next_state ON markov_transitions(next_state);
+CREATE INDEX IF NOT EXISTS idx_markov_updated_at ON markov_transitions(updated_at);
 
 -- Trigger to update updated_at timestamp
 CREATE TRIGGER IF NOT EXISTS update_games_timestamp
@@ -152,3 +170,11 @@ BEGIN
     SET word_count = word_count + 1 
     WHERE id = NEW.domain_id;
 END;
+
+-- Trigger for updating markov_transitions timestamp
+CREATE TRIGGER IF NOT EXISTS update_markov_timestamp
+    AFTER UPDATE ON markov_transitions
+    FOR EACH ROW
+    BEGIN
+        UPDATE markov_transitions SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+    END;
