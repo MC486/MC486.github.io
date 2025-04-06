@@ -91,6 +91,28 @@ CREATE TABLE IF NOT EXISTS q_learning_rewards (
     FOREIGN KEY (state_hash, action) REFERENCES q_learning_states(state_hash, action) ON DELETE CASCADE
 );
 
+-- Naive Bayes tables
+CREATE TABLE IF NOT EXISTS naive_bayes_words (
+    word TEXT NOT NULL,
+    probability REAL NOT NULL,
+    pattern_type TEXT,
+    visit_count INTEGER NOT NULL DEFAULT 1,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (word, pattern_type)
+);
+
+-- MCTS tables
+CREATE TABLE IF NOT EXISTS mcts_simulations (
+    state TEXT NOT NULL,
+    action TEXT NOT NULL,
+    reward REAL NOT NULL,
+    visit_count INTEGER NOT NULL DEFAULT 1,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (state, action)
+);
+
 -- Indexes for games table
 CREATE INDEX IF NOT EXISTS idx_games_player_name ON games(player_name);
 CREATE INDEX IF NOT EXISTS idx_games_status ON games(status);
