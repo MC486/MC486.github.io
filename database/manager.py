@@ -9,6 +9,7 @@ class DatabaseManager:
         """Initialize the database manager with the SQLite database path."""
         self.db_path = db_path
         self.logger = logging.getLogger(__name__)
+        self.create_tables()
         
     def __enter__(self):
         """Enter the context manager."""
@@ -37,8 +38,11 @@ class DatabaseManager:
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(query, params or ())
-            columns = [description[0] for description in cursor.description]
-            return [dict(zip(columns, row)) for row in cursor.fetchall()]
+            # Only try to get results if the query returns any
+            if cursor.description:
+                columns = [description[0] for description in cursor.description]
+                return [dict(zip(columns, row)) for row in cursor.fetchall()]
+            return []
             
     def execute(self, query: str, params: Optional[tuple] = None) -> None:
         """Execute a query that doesn't return results."""
@@ -95,100 +99,94 @@ class DatabaseManager:
                 cursor.execute(f"DROP TABLE IF EXISTS {table}")
                 
     def create_tables(self) -> None:
-        """Create all necessary database tables."""
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-            
-            # Create games table
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS games (
+        """Create all necessary database tables if they don't exist."""
+        try:
+            # Create word usage table
+            self.execute("""
+                CREATE TABLE IF NOT EXISTS word_usage (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    player_name TEXT NOT NULL,
-                    difficulty TEXT NOT NULL,
-                    max_attempts INTEGER NOT NULL,
-                    status TEXT NOT NULL DEFAULT 'in_progress',
-                    score INTEGER,
-                    start_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    end_time TIMESTAMP,
-                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    CHECK (difficulty IN ('easy', 'medium', 'hard')),
-                    CHECK (status IN ('in_progress', 'completed', 'abandoned')),
-                    CHECK (max_attempts > 0)
-                )
-            """)
-            
-            # Create game moves table
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS game_moves (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    game_id INTEGER NOT NULL,
-                    word TEXT NOT NULL,
-                    is_valid BOOLEAN NOT NULL,
-                    feedback TEXT NOT NULL,
-                    timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (game_id) REFERENCES games(id) ON DELETE CASCADE
-                )
-            """)
-            
-            # Create words table
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS words (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    word TEXT NOT NULL UNIQUE,
-                    category_id INTEGER,
-                    frequency INTEGER DEFAULT 0,
-                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL
+                    word TEXT UNIQUE NOT NULL,
+                    allowed BOOLEAN NOT NULL,
+                    num_played INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
             
             # Create categories table
-            cursor.execute("""
+            self.execute("""
                 CREATE TABLE IF NOT EXISTS categories (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT NOT NULL UNIQUE,
+                    name TEXT UNIQUE NOT NULL,
                     description TEXT,
-                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
             
-            # Create AI metrics table
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS ai_metrics (
+            # Create naive_bayes table
+            self.execute("""
+                CREATE TABLE IF NOT EXISTS naive_bayes (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    game_id INTEGER NOT NULL,
-                    move_number INTEGER NOT NULL,
-                    response_time REAL NOT NULL,
-                    confidence_score REAL NOT NULL,
-                    strategy_used TEXT NOT NULL,
-                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (game_id) REFERENCES games(id) ON DELETE CASCADE
+                    word TEXT NOT NULL,
+                    category TEXT NOT NULL,
+                    probability REAL NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(word, category)
                 )
             """)
             
-            # Create dictionary domains table
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS dictionary_domains (
+            # Create mcts table
+            self.execute("""
+                CREATE TABLE IF NOT EXISTS mcts (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT NOT NULL UNIQUE,
-                    description TEXT,
-                    word_count INTEGER DEFAULT 0,
-                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                    state TEXT NOT NULL,
+                    action TEXT NOT NULL,
+                    visits INTEGER DEFAULT 0,
+                    value REAL DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(state, action)
                 )
             """)
             
-            # Create indexes
-            self._create_indexes(cursor)
+            # Create q_learning table
+            self.execute("""
+                CREATE TABLE IF NOT EXISTS q_learning (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    state TEXT NOT NULL,
+                    action TEXT NOT NULL,
+                    q_value REAL DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(state, action)
+                )
+            """)
             
-            # Create triggers
-            self._create_triggers(cursor)
+            # Create markov_chain table
+            self.execute("""
+                CREATE TABLE IF NOT EXISTS markov_chain (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    current_state TEXT NOT NULL,
+                    next_state TEXT NOT NULL,
+                    probability REAL NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(current_state, next_state)
+                )
+            """)
             
-            conn.commit()
+            # Create games table
+            self.execute("""
+                CREATE TABLE IF NOT EXISTS games (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    start_time TIMESTAMP NOT NULL,
+                    end_time TIMESTAMP,
+                    score INTEGER DEFAULT 0,
+                    words_played TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
+            self.logger.info("Database tables created successfully")
+        except Exception as e:
+            self.logger.error(f"Error creating database tables: {str(e)}")
+            raise
             
     def _create_indexes(self, cursor: Cursor) -> None:
         """Create necessary indexes."""
@@ -216,6 +214,26 @@ class DatabaseManager:
         
         # Dictionary domains indexes
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_domains_name ON dictionary_domains(name)")
+        
+        # Q-Learning indexes
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_q_learning_state ON q_learning_states(state_hash)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_q_learning_action ON q_learning_states(action)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_q_learning_updated ON q_learning_states(last_updated)")
+        
+        # Markov indexes
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_markov_current ON markov_transitions(current_state)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_markov_next ON markov_transitions(next_state)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_markov_updated ON markov_transitions(last_updated)")
+        
+        # MCTS indexes
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_mcts_state ON mcts_states(state_hash)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_mcts_action ON mcts_states(action)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_mcts_updated ON mcts_states(last_updated)")
+        
+        # Naive Bayes indexes
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_bayes_word ON naive_bayes_probabilities(word)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_bayes_pattern ON naive_bayes_probabilities(pattern_type)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_bayes_updated ON naive_bayes_probabilities(last_updated)")
         
     def _create_triggers(self, cursor: Cursor) -> None:
         """Create necessary triggers."""
@@ -257,3 +275,43 @@ class DatabaseManager:
                 WHERE id = NEW.domain_id;
             END;
         """)
+
+    def get_cursor(self):
+        """
+        Get a database cursor.
+        
+        Returns:
+            sqlite3.Cursor: Database cursor
+        """
+        return self.conn.cursor()
+
+    def commit(self):
+        """
+        Commit the current transaction.
+        """
+        self.conn.commit()
+
+    def get_mcts_repository(self):
+        """
+        Get the MCTS repository.
+        
+        Returns:
+            MCTSRepository: MCTS repository instance
+        """
+        from database.repositories.mcts_repository import MCTSRepository
+        return MCTSRepository(self)
+
+    def get_q_learning_repository(self):
+        """
+        Get the Q-Learning repository.
+        
+        Returns:
+            QLearningRepository: Q-Learning repository instance
+        """
+        from .repositories.q_learning_repository import QLearningRepository
+        return QLearningRepository(self)
+
+    def get_naive_bayes_repository(self):
+        """Get the Naive Bayes repository instance."""
+        from .repositories.naive_bayes_repository import NaiveBayesRepository
+        return NaiveBayesRepository(self)

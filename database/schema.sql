@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS game_moves (
     is_valid BOOLEAN NOT NULL,
     feedback TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (game_id) REFERENCES games(id) ON DELETE CASCADE
 );
 
@@ -50,6 +51,7 @@ CREATE TABLE IF NOT EXISTS ai_metrics (
     confidence_score REAL NOT NULL CHECK (confidence_score >= 0 AND confidence_score <= 1),
     strategy_used TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (game_id) REFERENCES games(id) ON DELETE CASCADE
 );
 
@@ -78,7 +80,19 @@ CREATE TABLE IF NOT EXISTS markov_transitions (
 CREATE TABLE IF NOT EXISTS q_learning_backups (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL UNIQUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create q_learning_states table
+CREATE TABLE IF NOT EXISTS q_learning_states (
+    state_hash TEXT NOT NULL,
+    action TEXT NOT NULL,
+    q_value REAL NOT NULL DEFAULT 0,
+    visit_count INTEGER NOT NULL DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (state_hash, action)
 );
 
 -- Create q_learning_rewards table
@@ -88,6 +102,7 @@ CREATE TABLE IF NOT EXISTS q_learning_rewards (
     action TEXT NOT NULL,
     reward REAL NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (state_hash, action) REFERENCES q_learning_states(state_hash, action) ON DELETE CASCADE
 );
 
@@ -253,4 +268,53 @@ CREATE TRIGGER IF NOT EXISTS update_mcts_timestamp
     BEGIN
         UPDATE mcts_simulations SET updated_at = CURRENT_TIMESTAMP 
         WHERE state = NEW.state AND action = NEW.action;
+    END;
+
+-- Trigger for updating game_moves timestamp
+CREATE TRIGGER IF NOT EXISTS update_game_moves_timestamp
+    AFTER UPDATE ON game_moves
+    FOR EACH ROW
+    BEGIN
+        UPDATE game_moves SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+    END;
+
+-- Trigger for updating q_learning_states timestamp
+CREATE TRIGGER IF NOT EXISTS update_q_learning_states_timestamp
+    AFTER UPDATE ON q_learning_states
+    FOR EACH ROW
+    BEGIN
+        UPDATE q_learning_states SET updated_at = CURRENT_TIMESTAMP 
+        WHERE state_hash = NEW.state_hash AND action = NEW.action;
+    END;
+
+-- Trigger for updating q_learning_rewards timestamp
+CREATE TRIGGER IF NOT EXISTS update_q_learning_rewards_timestamp
+    AFTER UPDATE ON q_learning_rewards
+    FOR EACH ROW
+    BEGIN
+        UPDATE q_learning_rewards SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+    END;
+
+-- Trigger for updating word_usage timestamp
+CREATE TRIGGER IF NOT EXISTS update_word_usage_timestamp
+    AFTER UPDATE ON word_usage
+    FOR EACH ROW
+    BEGIN
+        UPDATE word_usage SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+    END;
+
+-- Trigger for updating ai_metrics timestamp
+CREATE TRIGGER IF NOT EXISTS update_ai_metrics_timestamp
+    AFTER UPDATE ON ai_metrics
+    FOR EACH ROW
+    BEGIN
+        UPDATE ai_metrics SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+    END;
+
+-- Trigger for updating q_learning_backups timestamp
+CREATE TRIGGER IF NOT EXISTS update_q_learning_backups_timestamp
+    AFTER UPDATE ON q_learning_backups
+    FOR EACH ROW
+    BEGIN
+        UPDATE q_learning_backups SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
     END;

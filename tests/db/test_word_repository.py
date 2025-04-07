@@ -9,7 +9,46 @@ project_root = str(Path(__file__).parent.parent.parent)
 sys.path.insert(0, project_root)
 
 from database.manager import DatabaseManager
-from database.repositories.word_repository import WordRepository
+from database.repositories.word_repository import WordUsageRepository
+
+class TestWordUsageRepository(unittest.TestCase):
+    """Test the WordUsageRepository class."""
+    
+    def setUp(self):
+        """Set up test database and repository."""
+        self.db_manager = DatabaseManager(":memory:")
+        self.repo = WordUsageRepository(self.db_manager)
+        
+    def test_record_word_usage(self):
+        """Test recording word usage."""
+        # Test adding new word
+        self.repo.record_word_usage("TEST", True)
+        word = self.repo.get_by_word("TEST")
+        self.assertIsNotNone(word)
+        self.assertEqual(word["word"], "TEST")
+        self.assertEqual(word["allowed"], True)
+        self.assertEqual(word["num_played"], 1)
+        
+        # Test updating existing word
+        self.repo.record_word_usage("TEST", False)
+        word = self.repo.get_by_word("TEST")
+        self.assertEqual(word["allowed"], False)
+        self.assertEqual(word["num_played"], 2)
+        
+    def test_get_word_stats(self):
+        """Test getting word usage statistics."""
+        # Add some test words
+        self.repo.record_word_usage("TEST1", True)
+        self.repo.record_word_usage("TEST2", True)
+        self.repo.record_word_usage("TEST3", False)
+        self.repo.record_word_usage("TEST1", True)  # Increment count
+        
+        stats = self.repo.get_word_stats()
+        self.assertEqual(stats["total_words"], 3)
+        self.assertEqual(stats["valid_words"], 2)
+        self.assertEqual(stats["invalid_words"], 1)
+        self.assertEqual(stats["total_plays"], 4)
+        self.assertAlmostEqual(stats["avg_plays_per_word"], 4/3)
 
 class TestWordRepository(unittest.TestCase):
     def setUp(self):

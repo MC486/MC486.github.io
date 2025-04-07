@@ -1,7 +1,7 @@
 # core/word_scoring.py
 # Scores words based on rarity and length, with progressive penalty for repeated use.
 
-from typing import Dict, List
+from typing import Dict, List, Optional
 import logging
 from collections import Counter
 from core.letter_pool import WEIGHTED_ALPHABET
@@ -19,45 +19,100 @@ letter_score_map = {
     for letter, count in _letter_frequencies.items()
 }
 
-class WordScoring:
-    """Handles word scoring and validation."""
+class WordScorer:
+    """Handles word scoring and statistics."""
     
-    def __init__(self):
-        """Initialize the word scoring system."""
-        self.db_manager = DatabaseManager()
+    def __init__(self, db_manager: DatabaseManager):
+        """Initialize the word scorer."""
+        self.db_manager = db_manager
         self.word_repo = WordRepository(self.db_manager)
-        self.word_validator = WordValidator(use_nltk=True)
+        
+    def score_word(self, word: str) -> Dict[str, any]:
+        """Score a word based on various factors.
+        
+        Args:
+            word: The word to score
+            
+        Returns:
+            Dictionary containing score and statistics
+        """
+        try:
+            # Get word usage stats
+            word_stats = self.word_repo.get_by_word(word)
+            if not word_stats:
+                return {
+                    'score': 0,
+                    'num_played': 0,
+                    'is_valid': False
+                }
+                
+            # Calculate score based on word length and usage
+            base_score = len(word)
+            usage_penalty = min(word_stats['num_played'] * 0.1, 2.0)  # Max 2 point penalty
+            score = max(base_score - usage_penalty, 1)
+            
+            return {
+                'score': score,
+                'num_played': word_stats['num_played'],
+                'is_valid': word_stats['allowed']
+            }
+        except Exception as e:
+            logger.error(f"Error scoring word {word}: {str(e)}")
+            return {
+                'score': 0,
+                'num_played': 0,
+                'is_valid': False
+            }
 
-def score_word(word: str, repeat_count: int = 0) -> int:
+def score_word(word: str, word_validator: WordValidator, category: Optional[str] = None) -> int:
     """
-    Scores a word based on letter rarity and length. Applies a progressive penalty if it's repeated.
-    Only scores valid words.
-
-    :param word: The word to score.
-    :param repeat_count: How many times this word has already been used.
-    :return: Calculated score after fatigue penalty, or 0 if word is invalid.
-    """
-    word = word.upper()  # Normalize for consistency with letter pool
+    Calculate the score for a word based on various factors.
     
-    # Validate word before scoring
-    if not _word_validator.validate_word(word):
-        logger.warning(f"Attempted to score invalid word: '{word}'")
+    Args:
+        word: The word to score
+        word_validator: Validator instance to check word validity
+        category: Optional category to check against (currently unused)
+        
+    Returns:
+        Score for the word, or 0 if invalid
+    """
+    if not word_validator.validate_word(word):
         return 0
         
-    base_score = sum(letter_score_map.get(letter, 1) for letter in word)
+    # Base score is the length of the word
+    score = len(word)
     
-    # Ensure minimum score of 1 for any valid word
-    base_score = max(1, base_score)
+    # Bonus points for using less common letters
+    letter_scores = {
+        'e': 1, 'a': 1, 'i': 1, 'o': 1, 'n': 1, 'r': 1, 't': 1, 'l': 1, 's': 1,
+        'd': 2, 'g': 2, 'b': 3, 'c': 3, 'm': 3, 'p': 3,
+        'f': 4, 'h': 4, 'v': 4, 'w': 4, 'y': 4,
+        'k': 5,
+        'j': 8, 'x': 8,
+        'q': 10, 'z': 10
+    }
+    
+    for letter in word.lower():
+        if letter in letter_scores:
+            score += letter_scores[letter]
+            
+    # Bonus for word length
+    if len(word) >= 7:
+        score *= 2
+    elif len(word) >= 5:
+        score = int(score * 1.5)
+        
+    return score
 
-    # Apply diminishing returns if word is repeated
-    if repeat_count > 0:
-        fatigue_factor = 1 / (repeat_count + 1) # Calculate the penalty factor based on repeat count.
-        final_score = max(1, int(base_score * fatigue_factor)) # Apply the penalty factor and ensure score is at least 1.
-        logger.info(
-            f"Word '{word}' scored {final_score} points after repeat fatigue (used {repeat_count + 1} times)."
-        ) # Log the score after applying the repeat penalty.
-    else:
-        final_score = base_score # If the word is not repeated, the final score is the base score.
-        logger.info(f"New word '{word}' scored {final_score} points.") # Log the score of a new word.
-
-    return final_score # Return the calculated final score.
+def get_word_stats(word: str, word_repo: WordRepository) -> Dict:
+    """
+    Get statistics for a word.
+    
+    Args:
+        word: The word to get stats for
+        word_repo: Repository for word usage data
+        
+    Returns:
+        Dictionary containing word statistics
+    """
+    return word_repo.get_word_stats(word)

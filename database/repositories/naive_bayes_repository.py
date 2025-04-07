@@ -1,12 +1,28 @@
 from typing import Dict, List, Optional
 from datetime import datetime
 from ..manager import DatabaseManager
+from .base_repository import BaseRepository
 
-class NaiveBayesRepository:
-    """Repository for managing Naive Bayes model data."""
+class NaiveBayesRepository(BaseRepository):
+    """Repository for storing Naive Bayes model data."""
     
-    def __init__(self, db_manager: DatabaseManager):
-        self.db = db_manager
+    def __init__(self, db_manager):
+        """Initialize the Naive Bayes repository."""
+        super().__init__(db_manager)
+        self.table_name = "naive_bayes"
+        
+        # Create naive_bayes_words table if it doesn't exist
+        self.db.execute_query("""
+            CREATE TABLE IF NOT EXISTS naive_bayes_words (
+                word TEXT NOT NULL,
+                probability REAL NOT NULL,
+                pattern_type TEXT,
+                visit_count INTEGER NOT NULL DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (word, pattern_type)
+            )
+        """)
         
     def record_word_probability(self, word: str, probability: float, 
                               pattern_type: Optional[str] = None) -> None:
@@ -130,13 +146,21 @@ class NaiveBayesRepository:
         Returns:
             int: Number of entries removed
         """
+        # First get the count of rows that will be deleted
         result = self.db.execute_query("""
+            SELECT COUNT(*) as count
+            FROM naive_bayes_words
+            WHERE updated_at < datetime('now', ?)
+        """, (f"-{days} days",))
+        count = result[0]['count'] if result else 0
+        
+        # Then delete the rows
+        self.db.execute_query("""
             DELETE FROM naive_bayes_words
             WHERE updated_at < datetime('now', ?)
-            SELECT changes()
         """, (f"-{days} days",))
         
-        return result[0]['changes()'] if result else 0
+        return count
         
     def get_learning_stats(self) -> Dict:
         """
@@ -171,4 +195,14 @@ class NaiveBayesRepository:
             'total_patterns': 0,
             'average_probability': 0.0,
             'most_common_pattern': None
-        } 
+        }
+        
+    def get_entry_count(self) -> int:
+        """
+        Get the total number of entries in the naive_bayes_words table.
+        
+        Returns:
+            The number of entries
+        """
+        query = "SELECT COUNT(*) FROM naive_bayes_words"
+        return self.db.get_scalar(query) or 0 

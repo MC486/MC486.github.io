@@ -61,9 +61,10 @@ def main():
     
     try:
         # Initialize database manager
-        db_manager = DatabaseManager()
-        db_manager.initialize_database()
-        logger.info("Database initialized")
+        db_path = Path("data/game.db")
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        db_manager = DatabaseManager(db_path=str(db_path))
+        logger.info("Database manager initialized")
         
         # Initialize repository manager
         repo_manager = RepositoryManager(db_manager)
@@ -74,7 +75,7 @@ def main():
         logger.info("Initial repository cleanup completed")
         
         # Initialize and start game
-        game_loop = GameLoop()
+        game_loop = GameLoop(db_manager=db_manager, repo_manager=repo_manager)
         game_loop.start()
     except Exception as e:
         logger.error(f"Game crashed: {str(e)}", exc_info=True)

@@ -4,6 +4,7 @@ from collections import defaultdict
 from core.game_events import GameEvent, EventType
 from core.game_events_manager import GameEventManager
 from ai.word_analysis import WordFrequencyAnalyzer
+from database.manager import DatabaseManager
 import numpy as np
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.naive_bayes import MultinomialNB
@@ -19,18 +20,17 @@ class NaiveBayes:
     Naive Bayes classifier for word prediction in the game.
     Uses word frequency and pattern analysis to estimate probabilities.
     """
-    def __init__(self, event_manager: GameEventManager, word_analyzer: WordFrequencyAnalyzer, repo_manager):
+    def __init__(self, event_manager: GameEventManager, word_analyzer: WordFrequencyAnalyzer, repo_manager: DatabaseManager):
         """Initialize the Naive Bayes model with event manager, word analyzer, and repository."""
         self.event_manager = event_manager
         self.word_analyzer = word_analyzer
-        self.repository = repo_manager.get_naive_bayes_repository() if repo_manager else None
+        self.repository = repo_manager.get_naive_bayes_repository()
         self.word_probabilities: Dict[str, float] = defaultdict(float)
         self.pattern_probabilities: Dict[str, float] = defaultdict(float)
         self.total_observations = 0
         
         # Load existing probabilities from repository
-        if self.repository:
-            self._load_from_repository()
+        self._load_from_repository()
         
         self._setup_event_subscriptions()
     
@@ -105,7 +105,7 @@ class NaiveBayes:
             pattern_prob = self._calculate_pattern_probability(word, pattern, pattern_type)
             if self.repository:
                 self.repository.record_word_probability(word, pattern_prob, pattern_type)
-            self.pattern_probabilities[pattern] = pattern_prob
+            self.pattern_probabilities[f"{pattern_type}_{pattern}"] = pattern_prob
             
         # Update total observations
         self.total_observations += 1
@@ -206,7 +206,7 @@ class NaiveBayes:
                         
                         # Record pattern probabilities
                         for pattern_type, pattern in patterns.items():
-                            prob = self.pattern_probabilities.get(pattern, 0.0)
+                            prob = self.pattern_probabilities.get(f"{pattern_type}_{pattern}", 0.0)
                             self.repository.record_word_probability(word, prob, pattern_type)
                             
         # Update learning stats
@@ -231,18 +231,18 @@ class NaiveBayes:
     def _load_from_repository(self) -> None:
         """Load existing probabilities from repository."""
         # Load word probabilities
-        for word in self.word_analyzer.words:
+        for word in self.word_analyzer.analyzed_words:
             prob = self.repository.get_word_probability(word)
             if prob > 0:
                 self.word_probabilities[word] = prob
                 
         # Load pattern probabilities
-        for word in self.word_analyzer.words:
+        for word in self.word_analyzer.analyzed_words:
             patterns = self.word_analyzer.get_patterns(word)
             for pattern_type, pattern in patterns.items():
                 prob = self.repository.get_word_probability(word, pattern_type)
                 if prob > 0:
-                    self.pattern_probabilities[pattern] = prob
+                    self.pattern_probabilities[f"{pattern_type}_{pattern}"] = prob
                     
         # Update total observations
         stats = self.repository.get_learning_stats()
@@ -256,11 +256,11 @@ class NaiveBayes:
                 self.repository.record_word_probability(word, prob)
                 
             # Save pattern probabilities
-            for word in self.word_analyzer.words:
+            for word in self.word_analyzer.analyzed_words:
                 patterns = self.word_analyzer.get_patterns(word)
                 for pattern_type, pattern in patterns.items():
-                    if pattern in self.pattern_probabilities:
-                        prob = self.pattern_probabilities[pattern]
+                    if f"{pattern_type}_{pattern}" in self.pattern_probabilities:
+                        prob = self.pattern_probabilities[f"{pattern_type}_{pattern}"]
                         self.repository.record_word_probability(word, prob, pattern_type)
                         
     def load_state(self) -> None:

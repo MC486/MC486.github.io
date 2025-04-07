@@ -5,238 +5,143 @@ from .trie_utils import TrieUtils
 import os
 import logging
 from database.repositories.word_repository import WordRepository
-from database.repositories.category_repository import CategoryRepository
 from database.manager import DatabaseManager
 
 logger = logging.getLogger(__name__)
 
 class WordValidator:
-    """Validates words using a Trie-based dictionary with NLTK words and WordRepository."""
+    """Validates words using NLTK and tracks word usage in the database."""
     
-    def __init__(self, use_nltk: bool = True, custom_dictionary_path: Optional[str] = None):
+    def __init__(self, word_repo: WordRepository):
         """Initialize the WordValidator.
         
         Args:
-            use_nltk: Whether to use NLTK word list (default: True)
-            custom_dictionary_path: Optional path to custom dictionary file
+            word_repo: Repository for word usage data
         """
-        self.trie = Trie()
-        self.cache_path = None
-        self.db_manager = DatabaseManager()
-        self.word_repo = WordRepository(self.db_manager)
-        self.category_repo = CategoryRepository(self.db_manager)
-        
-        # Load custom dictionary first
+        self.word_repo = word_repo
+        # Ensure NLTK words corpus is downloaded
         try:
-            custom_path = custom_dictionary_path or "data/custom_dictionary.txt"
-            if os.path.exists(custom_path):
-                self.load_custom_dictionary(custom_path)
-        except Exception as e:
-            logger.warning(f"Failed to load custom dictionary: {e}")
+            nltk.data.find('corpora/words')
+        except LookupError:
+            nltk.download('words', quiet=True)
         
-        if use_nltk:
-            try:
-                nltk.data.find('corpora/words')
-            except LookupError:
-                nltk.download('words')
-            
-            from nltk.corpus import words
-            word_list = words.words()
-            # Filter words to only include valid lengths and remove special characters
-            valid_words = {word.upper() for word in word_list 
-                         if word.isalpha() and 1 <= len(word) <= 15}
-            
-            # Add common plural forms
-            valid_words.update(self._get_common_plurals(valid_words))
-            
-            # Store words in repository
-            for word in valid_words:
-                self.word_repo.add_word(word)
-            
-            self.trie = TrieUtils.build_trie_from_words(valid_words)
-
-    def _get_common_plurals(self, base_words: Set[str]) -> Set[str]:
-        """Generate common plural forms from base words.
-        
-        Args:
-            base_words: Set of base words to generate plurals from
-            
-        Returns:
-            Set of plural forms
-        """
-        plurals = set()
-        for word in base_words:
-            # Add 's' plural
-            if not word.endswith('S'):
-                plurals.add(word + 'S')
-            # Add 'es' plural for words ending in s, x, z, ch, sh
-            if word.endswith(('S', 'X', 'Z', 'CH', 'SH')):
-                plurals.add(word + 'ES')
-            # Add 'ies' plural for words ending in y
-            if word.endswith('Y'):
-                plurals.add(word[:-1] + 'IES')
-        return plurals
-
-    def load_custom_dictionary(self, file_path: str) -> None:
-        """Load additional words from a custom dictionary file.
-        
-        Args:
-            file_path: Path to the dictionary file
-        """
-        custom_words = TrieUtils.load_word_list(file_path)
-        for word in custom_words:
-            self.trie.insert(word)
-        
-        self.cache_path = file_path + ".cache"
-        
-        # Try to save cached version
-        try:
-            TrieUtils.save_trie(self.trie, self.cache_path)
-        except:
-            pass  # Ignore cache saving errors
-
     def is_valid_word(self, word: str) -> bool:
-        """Check if a word is valid.
+        """Check if a word is valid using NLTK.
         
         Args:
-            word: Word to validate
+            word: The word to validate
             
         Returns:
-            bool: True if word is in dictionary
+            bool: True if the word is valid
         """
-        if not word:
-            return False
-        return self.trie.search(word.upper())
-
-    def validate_word(self, word: str) -> bool:
-        """Alias for is_valid_word for compatibility.
-        
-        Args:
-            word: Word to validate
-            
-        Returns:
-            bool: True if word is in dictionary
-        """
-        return self.is_valid_word(word)
-
-    def get_valid_words(self, letters: List[str], min_length: int = 3) -> Set[str]:
-        """Find all valid words that can be made from given letters.
-        
-        Args:
-            letters: List of available letters
-            min_length: Minimum word length
-            
-        Returns:
-            Set of valid words
-        """
-        if not letters:
-            return set()
-            
-        letters = [l.upper() for l in letters]
-        valid_words = set()
-        letter_counts = {}
-        
-        # Count available letters
-        for letter in letters:
-            letter_counts[letter] = letter_counts.get(letter, 0) + 1
-
-        def can_make_word(word: str) -> bool:
-            """Check if word can be made from available letters."""
-            word_counts = {}
-            for char in word:
-                word_counts[char] = word_counts.get(char, 0) + 1
-                if word_counts[char] > letter_counts.get(char, 0):
-                    return False
-            return True
-
-        # Get all words with valid prefixes
-        for i in range(len(letters)):
-            words = self.trie.get_words_with_prefix(letters[i])
-            for word in words:
-                if len(word) >= min_length and can_make_word(word):
-                    valid_words.add(word)
-
-        return valid_words
-
-    def validate_word_with_letters(self, word: str, letters: List[str]) -> bool:
-        """Check if word is valid and can be made from given letters.
-        
-        Args:
-            word: Word to validate
-            letters: List of available letters
-            
-        Returns:
-            bool: True if word is valid and can be made from letters
-        """
-        if not word or not letters:
-            return False
-            
         word = word.upper()
-        letters = [l.upper() for l in letters]
-        
-        if not self.is_valid_word(word):
+        if not word.isalpha() or not 1 <= len(word) <= 15:
             return False
             
-        # Check if word can be made from letters
-        letter_counts = {}
-        for letter in letters:
-            letter_counts[letter] = letter_counts.get(letter, 0) + 1
+        try:
+            from nltk.corpus import words
+            is_valid = word.lower() in words.words()
             
-        for char in word:
-            if char not in letter_counts or letter_counts[char] == 0:
-                return False
-            letter_counts[char] -= 1
+            # Only record word usage if it's valid
+            if is_valid:
+                try:
+                    self.word_repo.add_word(word)
+                    logger.debug(f"Recorded word usage: {word} (valid: {is_valid})")
+                except Exception as e:
+                    logger.error(f"Error recording word usage for {word}: {e}")
             
-        return True
+            return is_valid
+        except Exception as e:
+            logger.error(f"Error validating word {word}: {e}")
+            return False
 
-    def get_word_suggestions(self, prefix: str, category: Optional[str] = None, max_suggestions: int = 10) -> List[str]:
-        """Get word suggestions starting with the given prefix, optionally filtered by category.
+    def get_word_suggestions(self, prefix: str, max_suggestions: int = 10) -> List[str]:
+        """Get word suggestions starting with the given prefix.
         
         Args:
             prefix: The prefix to search for
-            category: Optional category name to filter by
             max_suggestions: Maximum number of suggestions to return
             
         Returns:
             List of suggested words
         """
         prefix = prefix.upper()
-        suggestions = set()
+        suggestions = []
         
-        # Get category ID if specified
-        category_id = None
-        if category:
-            category_record = self.category_repo.get_by_name(category)
-            if category_record:
-                category_id = category_record['id']
-        
-        # Get suggestions from repository
-        if category_id:
-            repo_suggestions = self.word_repo.get_by_category(category_id)
-            suggestions.update(word['word'] for word in repo_suggestions 
-                            if word['word'].startswith(prefix))
-        else:
-            repo_suggestions = self.word_repo.search_words(prefix + '%')
-            suggestions.update(word['word'] for word in repo_suggestions)
-        
-        # Get suggestions from trie
-        trie_suggestions = self.trie.get_words_with_prefix(prefix)
-        suggestions.update(trie_suggestions)
-        
-        return sorted(list(suggestions))[:max_suggestions]
+        try:
+            from nltk.corpus import words
+            for word in words.words():
+                if word.upper().startswith(prefix):
+                    suggestions.append(word.upper())
+                    if len(suggestions) >= max_suggestions:
+                        break
+        except Exception as e:
+            logger.error(f"Error getting word suggestions: {e}")
+            
+        return suggestions
 
     def get_dictionary_stats(self) -> dict:
         """Get statistics about the dictionary."""
-        repo_stats = self.word_repo.get_word_stats()
-        category_stats = self.category_repo.get_category_stats()
-        trie_stats = {
-            'total_words': len(self.trie.get_all_words()),
-            'max_length': max((len(word) for word in self.trie.get_all_words()), default=0),
-            'min_length': min((len(word) for word in self.trie.get_all_words()), default=0)
-        }
+        try:
+            from nltk.corpus import words
+            word_list = words.words()
+            return {
+                'total_words': len(word_list),
+                'max_length': max((len(word) for word in word_list), default=0),
+                'min_length': min((len(word) for word in word_list), default=0),
+                'usage_stats': self.word_repo.get_word_stats()
+            }
+        except Exception as e:
+            logger.error(f"Error getting dictionary stats: {e}")
+            return {
+                'total_words': 0,
+                'max_length': 0,
+                'min_length': 0,
+                'usage_stats': {}
+            }
+
+    def validate_word_with_letters(self, word: str, available_letters: Set[str]) -> bool:
+        """Check if a word is valid and can be formed using the available letters.
         
-        return {
-            'repository': repo_stats,
-            'categories': category_stats,
-            'trie': trie_stats
-        }
+        Args:
+            word: The word to validate
+            available_letters: Set of available letters
+            
+        Returns:
+            bool: True if the word is valid and can be formed using the available letters
+        """
+        word = word.upper()
+        if not word.isalpha() or not 1 <= len(word) <= 15:
+            return False
+            
+        # Check if word can be formed using available letters
+        word_letters = {}
+        for letter in word:
+            word_letters[letter] = word_letters.get(letter, 0) + 1
+            
+        available_letters_dict = {}
+        for letter in available_letters:
+            available_letters_dict[letter.upper()] = available_letters_dict.get(letter.upper(), 0) + 1
+            
+        for letter, count in word_letters.items():
+            if letter not in available_letters_dict or available_letters_dict[letter] < count:
+                return False
+                
+        # Check if word is valid using NLTK
+        try:
+            from nltk.corpus import words
+            return word.lower() in words.words()
+        except Exception as e:
+            logger.error(f"Error validating word {word}: {e}")
+            return False
+
+    def validate_word(self, word: str) -> bool:
+        """Alias for is_valid_word for backward compatibility.
+        
+        Args:
+            word: The word to validate
+            
+        Returns:
+            bool: True if the word is valid
+        """
+        return self.is_valid_word(word)

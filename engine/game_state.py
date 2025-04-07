@@ -7,9 +7,10 @@ from dataclasses import dataclass
 from core.letter_pool import generate_letter_pool
 from core.word_scoring import score_word
 from core.validation.word_validator import WordValidator
+from core.validation.trie import Trie
 from core.game_events import GameEvent, EventType
 from core.game_events_manager import GameEventManager
-from ai.ai_strategy import AIStrategy
+from ai.strategy.ai_strategy import AIStrategy
 from database.manager import DatabaseManager
 from database.repository_manager import RepositoryManager
 
@@ -40,21 +41,42 @@ class GameState:
     Manages the current game state and handles game progress.
     Integrates event system while maintaining original functionality.
     """
-    def __init__(self, event_manager: GameEventManager, db_manager: DatabaseManager = None, repo_manager: RepositoryManager = None):
+    def __init__(
+        self,
+        event_manager: GameEventManager,
+        db_manager: DatabaseManager,
+        repo_manager: RepositoryManager
+    ):
         """
         Initialize the game state.
         
         Args:
-            event_manager (GameEventManager): Event manager for game events
-            db_manager (DatabaseManager, optional): Database manager instance
-            repo_manager (RepositoryManager, optional): Repository manager instance
+            event_manager: Event manager for handling game events
+            db_manager: Database manager for data persistence
+            repo_manager: Repository manager for AI model data
         """
+        self.event_manager = event_manager
+        self.db_manager = db_manager
+        self.repo_manager = repo_manager
+        
+        # Get repositories
+        self.word_repo = self.repo_manager.get_repository('word')
+        self.category_repo = self.repo_manager.get_repository('category')
+        
+        # Initialize game components
+        self.word_validator = WordValidator(self.word_repo)
+        self.trie = Trie()
+        self.ai_strategy = AIStrategy(
+            event_manager=self.event_manager,
+            db_manager=self.db_manager,
+            word_repo=self.word_repo,
+            category_repo=self.category_repo
+        )
+        
         # Original initialization
-        self.word_validator = WordValidator(use_nltk=True)
         self.is_game_over = False
         
         # Enhanced state tracking
-        self.event_manager = event_manager
         self.phase = GamePhase.SETUP
         self.start_time: Optional[datetime] = None
         self.end_time: Optional[datetime] = None
@@ -67,25 +89,8 @@ class GameState:
         self.shared_letters: List[str] = []
         self.boggle_letters: List[str] = []
         
-        # Initialize database and repository managers
-        self.db_manager = db_manager or DatabaseManager()
-        if not db_manager:
-            self.db_manager.initialize_database()
-        self.repo_manager = repo_manager or RepositoryManager(self.db_manager)
-        
-        # AI Strategy with database integration
-        self.ai_strategy = AIStrategy(
-            event_manager=event_manager,
-            difficulty='medium',
-            db_manager=self.db_manager,
-            repo_manager=self.repo_manager
-        )
-        
         # Setup event subscriptions
         self._setup_event_subscriptions()
-        
-        # Get repositories
-        self.word_repo = self.repo_manager.get_repository('word')
         
         logger.info("GameState initialized with repository manager")
         
@@ -204,7 +209,7 @@ class GameState:
             print("⚠️ You already used this word. Score will be reduced. ⚠️")
 
         # Score calculation
-        score = score_word(word, repeat_count)
+        score = score_word(word, self.word_validator)
         self.human_player.score += score
         self.human_player.used_words.add(word)
         self.human_player.word_usage_counts[word] = repeat_count + 1
@@ -330,7 +335,7 @@ class GameState:
         logger.info(f"Word '{ai_word}' has been used {repeat_count} times before")
         
         # Score calculation
-        score = score_word(ai_word, repeat_count)
+        score = score_word(ai_word, self.word_validator)
         self.ai_player.score += score
         self.ai_player.used_words.add(ai_word)
         self.ai_player.word_usage_counts[ai_word] = repeat_count + 1

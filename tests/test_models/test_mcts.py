@@ -1,37 +1,74 @@
 import unittest
 from unittest.mock import Mock, patch
-from core.game_events import GameEvent, EventType, GameEventManager
+from core.game_events import GameEvent, EventType
+from core.game_events_manager import GameEventManager
 from ai.word_analysis import WordFrequencyAnalyzer
 from ai.models.mcts import MCTS, MCTSNode
+from database.manager import DatabaseManager
 
 class TestMCTS(unittest.TestCase):
     def setUp(self):
         """Setup test environment before each test"""
         self.event_manager = Mock(spec=GameEventManager)
         self.word_analyzer = Mock(spec=WordFrequencyAnalyzer)
+        self.db_manager = Mock(spec=DatabaseManager)
         self.valid_words = {'STAR', 'START', 'STARE', 'RATE', 'TEAR'}
+        
+        # Mock repository methods
+        self.repository = Mock()
+        self.db_manager.get_mcts_repository.return_value = self.repository
+        self.repository.get_best_action.return_value = None
+        self.repository.get_state_actions.return_value = {
+            'A': {'avg_reward': 0.5},
+            'R': {'avg_reward': 0.6},
+            'T': {'avg_reward': 0.4}
+        }
+        self.repository.get_state_stats.return_value = {
+            'A': {'avg_reward': 0.5},
+            'R': {'avg_reward': 0.6},
+            'T': {'avg_reward': 0.4}
+        }
+        self.repository.save_state.return_value = None
+        
         self.mcts = MCTS(
-            event_manager=self.event_manager,
-            word_analyzer=self.word_analyzer,
             valid_words=self.valid_words,
             max_depth=4,
-            simulations=20
+            num_simulations=20,
+            repo_manager=self.db_manager,
+            event_manager=self.event_manager
         )
 
     def test_mcts_returns_valid_output(self):
         """Test basic MCTS output (maintaining original test)"""
-        shared_letters = ['A', 'T', 'E', 'R']
-        private_letters = ['S', 'H', 'O', 'U']
-        result = self.mcts.run(shared_letters, private_letters, word_length=5)
+        # Use letters that don't immediately form a valid word
+        shared_letters = ['E', 'D', 'G']
+        private_letters = ['E']
+        
+        # Clear the valid words set and add only one word that requires MCTS to find
+        self.valid_words.clear()
+        self.valid_words.add('EDGE')
+        
+        # Configure repository to guide MCTS
+        self.repository.get_state_stats.return_value = {
+            'E': {'avg_reward': 0.8},
+            'D': {'avg_reward': 0.7},
+            'G': {'avg_reward': 0.6}
+        }
+        
+        result = self.mcts.run(shared_letters, private_letters)
         self.assertTrue(isinstance(result, str))
         self.assertLessEqual(len(result), 5)
+        
+        # Verify repository usage
+        self.repository.get_best_action.assert_called_once()
+        self.repository.get_state_stats.assert_called()
 
     def test_node_initialization(self):
         """Test MCTSNode initialization and properties"""
         node = MCTSNode(state="STA")
         self.assertEqual(node.state, "STA")
-        self.assertEqual(node.visits, 0)
-        self.assertEqual(node.wins, 0)
+        self.assertEqual(node.visit_count, 0)
+        self.assertEqual(node.win_count, 0)
         self.assertIsNone(node.parent)
         self.assertEqual(len(node.children), 0)
 
@@ -51,13 +88,13 @@ class TestMCTS(unittest.TestCase):
         parent.children.append(child)
         
         # Test unvisited node
-        self.assertEqual(child.uct_score(), float('inf'))
+        self.assertEqual(child.get_uct_score(), float('inf'))
         
         # Test visited node
-        child.visits = 10
-        child.wins = 5
-        parent.visits = 20
-        score = child.uct_score()
+        child.visit_count = 10
+        child.win_count = 5
+        parent.visit_count = 20
+        score = child.get_uct_score()
         self.assertTrue(isinstance(score, float))
         self.assertTrue(0 <= score <= 2)  # Reasonable UCT score range
 
@@ -69,15 +106,18 @@ class TestMCTS(unittest.TestCase):
         # Configure word analyzer mock
         self.word_analyzer.get_word_score.return_value = 1.0
         
-        result = self.mcts.run(shared_letters, private_letters, word_length=5)
+        result = self.mcts.run(shared_letters, private_letters)
         self.assertTrue(result in self.valid_words)
+        
+        # Verify repository updates
+        self.repository.save_state.assert_called()
 
     def test_event_emission(self):
         """Test event system integration"""
         shared_letters = ['S', 'T', 'A', 'R']
         private_letters = ['E']
         
-        self.mcts.run(shared_letters, private_letters, word_length=4)
+        self.mcts.run(shared_letters, private_letters)
         
         # Verify events were emitted
         self.event_manager.emit.assert_called()
@@ -94,7 +134,7 @@ class TestMCTS(unittest.TestCase):
         shared_letters = ['S', 'T', 'A', 'R']
         private_letters = ['E']
         
-        self.mcts.run(shared_letters, private_letters, word_length=4)
+        self.mcts.run(shared_letters, private_letters)
         stats = self.mcts.get_stats()
         
         self.assertIn('total_simulations', stats)
@@ -104,7 +144,7 @@ class TestMCTS(unittest.TestCase):
     def test_invalid_inputs(self):
         """Test handling of invalid inputs"""
         # Empty letter lists
-        result = self.mcts.run([], [], word_length=4)
+        result = self.mcts.run([], [])
         self.assertEqual(result, None)
         
         # Invalid word length
@@ -118,10 +158,10 @@ class TestMCTS(unittest.TestCase):
         
         # Simulate some visits and wins
         for child in root.children:
-            child.visits = 5
-            child.wins = 2
+            child.visit_count = 5
+            child.win_count = 2
         
-        selected = self.mcts.select(root)
+        selected = self.mcts._select(root)
         self.assertIsNotNone(selected)
         self.assertTrue(isinstance(selected, MCTSNode))
 

@@ -1,7 +1,7 @@
 # ai/markov_chain.py
 
-import random
 import logging
+import random
 from collections import defaultdict
 from typing import List, Dict, Set, Optional, Tuple, Any
 from core.game_events import GameEvent, EventType
@@ -10,6 +10,7 @@ from ai.word_analysis import WordFrequencyAnalyzer
 from core.validation.trie import Trie
 from database.repositories.markov_repository import MarkovRepository
 
+logger = logging.getLogger(__name__)
 
 class MarkovChain:
     """
@@ -17,20 +18,38 @@ class MarkovChain:
     Uses transition probabilities between letters to generate words.
     """
     def __init__(self, 
-                 event_manager: GameEventManager,
-                 word_analyzer: WordFrequencyAnalyzer,
-                 trie: Trie,
-                 markov_repository: MarkovRepository,
+                 event_manager: Optional[GameEventManager] = None,
+                 word_analyzer: Optional[WordFrequencyAnalyzer] = None,
+                 trie: Optional[Trie] = None,
+                 markov_repository: Optional[MarkovRepository] = None,
                  order: int = 2):
+        """
+        Initialize the Markov Chain model.
+        
+        Args:
+            event_manager (GameEventManager): Event manager for game events
+            word_analyzer (WordFrequencyAnalyzer): Word analyzer for frequency data
+            trie (Trie): Trie data structure for word validation
+            markov_repository (MarkovRepository): Repository for storing transitions
+            order (int): Order of the Markov Chain (default: 2)
+        """
+        if order < 1:
+            raise ValueError("Order must be at least 1")
+            
         self.event_manager = event_manager
         self.word_analyzer = word_analyzer
         self.trie = trie
-        self.order = order
         self.markov_repository = markov_repository
+        self.order = order
         self.transitions: Dict[str, Dict[str, float]] = {}
         self.start_probabilities: Dict[str, float] = {}
+        self.is_trained = False
+        self.min_length = 3  # Minimum word length
+        self.max_length = 15  # Maximum word length
+        self.word_validator = word_analyzer.word_validator if word_analyzer else None
         
-        self._build_transition_matrix()
+        if word_analyzer:
+            self._build_transition_matrix()
         
     def _build_transition_matrix(self) -> None:
         """Build transition probabilities matrix from word analyzer data"""
@@ -63,49 +82,39 @@ class MarkovChain:
             for next_char in self.transitions[current]:
                 self.transitions[current][next_char] /= total
                 
-    def generate_word(self, available_letters: str, prefix: str = "") -> str:
-        """Generate a word based on available letters and optional prefix"""
-        available_letters = available_letters.upper()
-        prefix = prefix.upper()
+    def generate_word(self, available_letters: Set[str]) -> Optional[str]:
+        """Generate a word using available letters."""
+        if not self.transitions:
+            logger.warning("Model not trained, returning None")
+            return None
+            
+        # Convert available letters to uppercase
+        available_letters = {letter.upper() for letter in available_letters}
         
-        # Get transitions from repository
-        transitions = self.markov_repository.get_transitions()
-        
-        # If no transitions in repository, use local transitions
-        if not transitions:
-            transitions = self.transitions
-        
-        # Start with prefix if provided
-        current = prefix[-self.order:] if prefix else ""
-        word = prefix
-        
-        # Generate word
-        while len(word) < 15:  # Maximum word length
-            # Get possible next characters
-            if current in transitions:
-                next_chars = [c for c in transitions[current].keys() 
-                            if c in available_letters and c not in word]
-                if not next_chars:
+        # Try to generate a word
+        max_attempts = 10
+        for _ in range(max_attempts):
+            word = []
+            current_state = self._choose_start_state()
+            
+            # Generate word
+            for _ in range(self.max_length):
+                if current_state not in self.transitions:
                     break
                     
-                # Choose next character based on probabilities
-                probs = [transitions[current][c] for c in next_chars]
-                next_char = random.choices(next_chars, weights=probs)[0]
-            else:
-                # If no transitions for current state, choose random available letter
-                next_chars = [c for c in available_letters if c not in word]
-                if not next_chars:
+                next_letter = self._choose_next_letter(current_state, available_letters)
+                if not next_letter:
                     break
-                next_char = random.choice(next_chars)
-            
-            word += next_char
-            current = word[-self.order:]
-            
+                    
+                word.append(next_letter)
+                current_state = self._update_state(current_state, next_letter)
+                
             # Check if word is valid
-            if self.trie.is_word(word):
-                return word
-        
-        return word
+            generated_word = ''.join(word)
+            if len(generated_word) >= self.min_length and self.word_validator.is_valid_word(generated_word):
+                return generated_word
+                
+        return None
         
     def update(self, word: str, score: float) -> None:
         """Update model based on word success"""
@@ -135,14 +144,48 @@ class MarkovChain:
         Args:
             words (List[str]): List of words to train on
         """
-        self.word_analyzer.analyze_word_list(words)
+        # Check if repository is available
+        if not self.markov_repository:
+            raise RuntimeError("No repository available")
+            
+        # Convert all words to uppercase
+        words = [word.upper() for word in words]
+        
+        # Validate words
+        if not words:
+            raise ValueError("Cannot train on empty word list")
+        if not all(word.isalpha() for word in words):
+            raise ValueError("All words must contain only letters")
+            
+        # Train word analyzer if available
+        if self.word_analyzer:
+            self.word_analyzer.analyze_word_list(words)
+            
+        # Build transition matrix
         self._build_transition_matrix()
         
-        self.event_manager.emit(GameEvent(
-            type=EventType.MODEL_STATE_UPDATE,
-            data={"message": "Markov Chain model trained"},
-            debug_data={"word_count": len(words)}
-        ))
+        # Record transitions in repository
+        for word in words:
+            # Record start transition
+            prefix = word[:self.order]
+            self.markov_repository.record_transition("START", prefix)
+            
+            # Record letter transitions
+            for i in range(len(word) - self.order):
+                current = word[i:i+self.order]
+                next_char = word[i+self.order]
+                self.markov_repository.record_transition(current, next_char)
+        
+        # Set trained flag
+        self.is_trained = True
+        
+        # Emit event if event manager is available
+        if self.event_manager:
+            self.event_manager.emit(GameEvent(
+                type=EventType.MODEL_STATE_UPDATE,
+                data={"message": "Markov Chain model trained"},
+                debug_data={"word_count": len(words)}
+            ))
 
     def get_model_stats(self) -> Dict[str, Any]:
         """Get overall statistics about the model"""
@@ -197,3 +240,46 @@ class MarkovChain:
                 "transitions": self.transitions[state]
             }
         return {"total_transitions": 0, "transitions": {}}
+
+    def get_state_probabilities(self, state: str) -> Dict[str, float]:
+        """Get transition probabilities for a given state."""
+        if not self.markov_repository:
+            raise RuntimeError("No repository available")
+        if not self.is_trained:
+            raise RuntimeError("Model not trained")
+            
+        state = state.upper()
+        return self.markov_repository.get_state_probabilities(state)
+
+    def _choose_start_state(self) -> str:
+        """Choose a start state based on start probabilities."""
+        if not self.start_probabilities:
+            return ""
+            
+        states = list(self.start_probabilities.keys())
+        weights = list(self.start_probabilities.values())
+        return random.choices(states, weights=weights)[0]
+        
+    def _choose_next_letter(self, current_state: str, available_letters: Set[str]) -> Optional[str]:
+        """Choose the next letter based on transition probabilities and available letters."""
+        if current_state not in self.transitions:
+            return None
+            
+        # Filter transitions to only use available letters
+        valid_transitions = {
+            letter: prob for letter, prob in self.transitions[current_state].items()
+            if letter in available_letters
+        }
+        
+        if not valid_transitions:
+            return None
+            
+        letters = list(valid_transitions.keys())
+        weights = list(valid_transitions.values())
+        return random.choices(letters, weights=weights)[0]
+        
+    def _update_state(self, current_state: str, next_letter: str) -> str:
+        """Update the current state with the next letter."""
+        if len(current_state) < self.order:
+            return current_state + next_letter
+        return current_state[1:] + next_letter

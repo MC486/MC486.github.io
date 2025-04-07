@@ -1,22 +1,44 @@
 import unittest
 from unittest.mock import Mock, patch
 import numpy as np
-from ai.markov_chain import MarkovChain
+from ai.models.markov_chain import MarkovChain
 from database.repositories.markov_repository import MarkovRepository
 from database.manager import DatabaseManager
+from core.game_events_manager import GameEventManager
+from core.validation.trie import Trie
+from ai.word_analysis import WordFrequencyAnalyzer
 
 class TestMarkovChain(unittest.TestCase):
     def setUp(self):
         """Setup test environment before each test"""
-        # Create a mock repository
+        # Create mock dependencies
+        self.event_manager = Mock(spec=GameEventManager)
+        self.word_analyzer = Mock(spec=WordFrequencyAnalyzer)
+        self.trie = Mock(spec=Trie)
         self.repository = Mock(spec=MarkovRepository)
-        self.markov_chain = MarkovChain(order=2, repository=self.repository)
+        
+        # Set up required mock methods
+        self.repository.get_state_probabilities = Mock(return_value={})
+        self.repository.get_transitions = Mock(return_value={})
+        self.repository.record_transition = Mock()
+        self.repository.bulk_update_transitions = Mock()
+        self.word_analyzer.get_analyzed_words = Mock(return_value=set())
+        self.trie.search = Mock(return_value=True)
+        
+        # Create MarkovChain instance
+        self.markov_chain = MarkovChain(
+            event_manager=self.event_manager,
+            word_analyzer=self.word_analyzer,
+            trie=self.trie,
+            markov_repository=self.repository,
+            order=2
+        )
 
     def test_initialization(self):
         """Test proper initialization of MarkovChain"""
         self.assertEqual(self.markov_chain.order, 2)
         self.assertFalse(self.markov_chain.is_trained)
-        self.assertIsNotNone(self.markov_chain.repository)
+        self.assertIsNotNone(self.markov_chain.markov_repository)
 
     def test_initialization_invalid_order(self):
         """Test initialization with invalid order"""
@@ -77,7 +99,7 @@ class TestMarkovChain(unittest.TestCase):
         """Test word generation with invalid length parameters"""
         self.markov_chain.is_trained = True
         with self.assertRaises(ValueError):
-            self.markov_chain.generate_word(max_length=2, min_length=3)
+            self.markov_chain.generate_word(available_letters="A")  # Not enough letters for 3-letter word
 
     def test_generate_word_no_start_states(self):
         """Test word generation with no available start states"""
@@ -98,10 +120,20 @@ class TestMarkovChain(unittest.TestCase):
             {"O": 1.0},  # Third transition
             None  # End generation
         ]
+        
+        # Mock transitions
+        self.repository.get_transitions.return_value = {
+            "HE": {"L": 0.5, "A": 0.5},
+            "EL": {"L": 1.0},
+            "LL": {"O": 1.0}
+        }
+        
+        # Mock trie to accept any word
+        self.trie.search.return_value = True
 
-        result = self.markov_chain.generate_word(max_length=5, min_length=3)
+        result = self.markov_chain.generate_word(available_letters={"H", "E", "L", "O"})
         self.assertIsNotNone(result)
-        self.assertTrue(3 <= len(result) <= 5)
+        self.assertTrue(3 <= len(result) <= 15)
 
     def test_get_state_probabilities_without_repository(self):
         """Test getting probabilities without repository"""
@@ -122,7 +154,7 @@ class TestMarkovChain(unittest.TestCase):
         
         result = self.markov_chain.get_state_probabilities("HE")
         self.assertEqual(result, expected_probs)
-        self.repository.get_state_probabilities.assert_called_once_with("he")
+        self.repository.get_state_probabilities.assert_called_once_with("HE")
 
 if __name__ == '__main__':
     unittest.main()

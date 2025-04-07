@@ -10,7 +10,7 @@ sys.path.insert(0, project_root)
 
 from database.manager import DatabaseManager
 from database.repositories.category_repository import CategoryRepository
-from database.repositories.word_repository import WordRepository
+from database.repositories.word_repository import WordUsageRepository
 
 class TestCategoryRepository(unittest.TestCase):
     def setUp(self):
@@ -21,7 +21,7 @@ class TestCategoryRepository(unittest.TestCase):
         self.db_manager.create_tables()
         
         self.category_repo = CategoryRepository(self.db_manager)
-        self.word_repo = WordRepository(self.db_manager)
+        self.word_repo = WordUsageRepository(self.db_manager)
         
     def tearDown(self):
         """Clean up the temporary database."""
@@ -286,6 +286,28 @@ class TestCategoryRepository(unittest.TestCase):
             category = self.category_repo.get_by_id(category_id)
             self.assertIsNotNone(category)
             self.assertEqual(category['name'], categories[i]['name'])
+
+    def test_category_operations(self):
+        """Test basic category operations."""
+        # Add a category
+        category_id = self.category_repo.add_category("Test Category", "Test Description")
+        self.assertIsNotNone(category_id)
+        
+        # Get category by ID
+        category = self.category_repo.get_by_id(category_id)
+        self.assertEqual(category["name"], "Test Category")
+        self.assertEqual(category["description"], "Test Description")
+        
+        # Update category
+        self.category_repo.update_category(category_id, "Updated Category", "Updated Description")
+        category = self.category_repo.get_by_id(category_id)
+        self.assertEqual(category["name"], "Updated Category")
+        self.assertEqual(category["description"], "Updated Description")
+        
+        # Delete category
+        self.category_repo.delete_category(category_id)
+        category = self.category_repo.get_by_id(category_id)
+        self.assertIsNone(category)
 
 if __name__ == '__main__':
     unittest.main() 

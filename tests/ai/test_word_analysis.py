@@ -2,12 +2,18 @@ import unittest
 from unittest.mock import Mock, patch
 from core.game_events import GameEvent, EventType, GameEventManager
 from ai.word_analysis import WordFrequencyAnalyzer
+from database.manager import DatabaseManager
 
 class TestWordFrequencyAnalyzer(unittest.TestCase):
     def setUp(self):
         """Setup test environment before each test"""
         self.event_manager = Mock(spec=GameEventManager)
-        self.analyzer = WordFrequencyAnalyzer(self.event_manager)
+        self.db_manager = Mock(spec=DatabaseManager)
+        self.analyzer = WordFrequencyAnalyzer(self.db_manager)
+        
+        # Mock database methods
+        self.db_manager.execute_query.return_value = []
+        self.db_manager.execute.return_value = None
 
     def test_initialization(self):
         """Test proper initialization"""
@@ -16,6 +22,9 @@ class TestWordFrequencyAnalyzer(unittest.TestCase):
         self.assertEqual(len(self.analyzer.word_lengths), 0)
         self.assertEqual(len(self.analyzer.letter_pairs), 0)
         self.assertEqual(len(self.analyzer.position_frequencies), 0)
+        
+        # Verify database initialization
+        self.db_manager.execute.assert_called()
 
     def test_analyze_single_word(self):
         """Test analysis of a single word"""
@@ -102,7 +111,7 @@ class TestWordFrequencyAnalyzer(unittest.TestCase):
         
         event = GameEvent(
             type=EventType.GAME_START,
-            data={}
+            data={"reset_analysis": True}
         )
         
         self.analyzer._handle_game_start(event)

@@ -1,12 +1,28 @@
 from typing import List, Dict, Optional, Tuple
 from datetime import datetime
 from ..manager import DatabaseManager
+from .base_repository import BaseRepository
 
-class QLearningRepository:
+class QLearningRepository(BaseRepository):
     """Repository for managing Q-learning states and values."""
     
     def __init__(self, db_manager: DatabaseManager):
-        self.db = db_manager
+        """Initialize the Q-learning repository."""
+        super().__init__(db_manager)
+        self.table_name = "q_learning"
+        
+        # Create q_learning_states table if it doesn't exist
+        self.db.execute_query("""
+            CREATE TABLE IF NOT EXISTS q_learning_states (
+                state_hash TEXT NOT NULL,
+                action TEXT NOT NULL,
+                q_value REAL NOT NULL DEFAULT 0.0,
+                visit_count INTEGER NOT NULL DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (state_hash, action)
+            )
+        """)
         
     def record_state_action(self, state_hash: str, action: str, reward: float, 
                           next_state_hash: str, learning_rate: float = 0.1, 
@@ -446,4 +462,14 @@ class QLearningRepository:
             return True
         except Exception as e:
             print(f"Restore failed: {str(e)}")
-            return False 
+            return False
+
+    def get_entry_count(self) -> int:
+        """
+        Get the total number of entries in the q_learning_states table.
+        
+        Returns:
+            The number of entries
+        """
+        query = "SELECT COUNT(*) FROM q_learning_states"
+        return self.db.get_scalar(query) or 0 

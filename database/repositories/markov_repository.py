@@ -1,12 +1,28 @@
 from typing import List, Dict, Optional, Tuple
 from datetime import datetime
 from ..manager import DatabaseManager
+from .base_repository import BaseRepository
+from collections import defaultdict
 
-class MarkovRepository:
+class MarkovRepository(BaseRepository):
     """Repository for managing Markov chain transitions and probabilities."""
     
     def __init__(self, db_manager: DatabaseManager):
-        self.db = db_manager
+        """Initialize the Markov chain repository."""
+        super().__init__(db_manager)
+        self.table_name = "markov_chain"
+        
+        # Create markov_transitions table if it doesn't exist
+        self.db.execute_query("""
+            CREATE TABLE IF NOT EXISTS markov_transitions (
+                current_state TEXT NOT NULL,
+                next_state TEXT NOT NULL,
+                count INTEGER NOT NULL DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (current_state, next_state)
+            )
+        """)
         
     def record_transition(self, current_state: str, next_state: str, count: int = 1) -> None:
         """
@@ -189,10 +205,47 @@ class MarkovRepository:
         Returns:
             Number of transitions removed
         """
+        # First get the count of rows that will be deleted
         result = self.db.execute_query("""
+            SELECT COUNT(*) as count
+            FROM markov_transitions
+            WHERE updated_at < datetime('now', ?)
+        """, (f"-{days} days",))
+        count = result[0]['count'] if result else 0
+        
+        # Then delete the rows
+        self.db.execute_query("""
             DELETE FROM markov_transitions
             WHERE updated_at < datetime('now', ?)
-            SELECT changes()
         """, (f"-{days} days",))
         
-        return result[0]['changes()'] if result else 0 
+        return count
+
+    def get_transitions(self) -> Dict[str, Dict[str, float]]:
+        """
+        Get all transitions from the repository.
+        
+        Returns:
+            Dictionary mapping current states to dictionaries of next states and their probabilities
+        """
+        result = self.db.execute_query("""
+            WITH transition_counts AS (
+                SELECT 
+                    current_state,
+                    next_state,
+                    count,
+                    SUM(count) OVER (PARTITION BY current_state) as total_count
+                FROM markov_transitions
+            )
+            SELECT 
+                current_state,
+                next_state,
+                count * 1.0 / total_count as probability
+            FROM transition_counts
+        """)
+        
+        transitions = defaultdict(dict)
+        for row in result:
+            transitions[row['current_state']][row['next_state']] = row['probability']
+            
+        return dict(transitions) 

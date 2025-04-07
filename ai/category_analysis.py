@@ -1,9 +1,11 @@
-from typing import Dict, List, Set, DefaultDict, Tuple
+from typing import Dict, List, Set, DefaultDict, Tuple, Optional, Any
 from collections import defaultdict
 import logging
 from database.repositories.word_repository import WordRepository
 from database.repositories.category_repository import CategoryRepository
 from database.manager import DatabaseManager
+from core.game_events import GameEvent, EventType
+from core.game_events_manager import GameEventManager
 
 logger = logging.getLogger(__name__)
 
@@ -12,10 +14,16 @@ class CategoryAnalyzer:
     Analyzes word categories and their relationships for AI decision making.
     Provides category-based statistical data used by various AI models.
     """
-    def __init__(self):
-        self.db_manager = DatabaseManager()
-        self.word_repo = WordRepository(self.db_manager)
-        self.category_repo = CategoryRepository(self.db_manager)
+    def __init__(self, word_repo: WordRepository, category_repo: CategoryRepository):
+        """
+        Initialize the category analyzer.
+
+        Args:
+            word_repo: Repository for word usage data
+            category_repo: Repository for word categories
+        """
+        self.word_repo = word_repo
+        self.category_repo = category_repo
         
         # Category frequency tracking
         self.category_frequencies: DefaultDict[int, int] = defaultdict(int)

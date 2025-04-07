@@ -1,12 +1,28 @@
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 from datetime import datetime
 from ..manager import DatabaseManager
+from .base_repository import BaseRepository
 
-class MCTSRepository:
-    """Repository for managing Monte Carlo Tree Search model data."""
+class MCTSRepository(BaseRepository):
+    """Repository for storing MCTS model data."""
     
-    def __init__(self, db_manager: DatabaseManager):
-        self.db = db_manager
+    def __init__(self, db_manager):
+        """Initialize the MCTS repository."""
+        super().__init__(db_manager)
+        self.table_name = "mcts"
+        
+        # Create mcts_simulations table if it doesn't exist
+        self.db.execute_query("""
+            CREATE TABLE IF NOT EXISTS mcts_simulations (
+                state TEXT NOT NULL,
+                action TEXT NOT NULL,
+                reward REAL NOT NULL,
+                visit_count INTEGER NOT NULL DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (state, action)
+            )
+        """)
         
     def record_simulation(self, state: str, action: str, reward: float, 
                          visit_count: int = 1) -> None:
@@ -85,23 +101,26 @@ class MCTSRepository:
             for row in results
         }
         
-    def get_best_action(self, state: str) -> Optional[str]:
+    def get_best_action(self, state: Union[str, List[str]]) -> Optional[str]:
         """
         Get the best action for a state based on average reward.
         
         Args:
-            state: Game state
+            state: Game state (string or list of letters)
             
         Returns:
             Optional[str]: Best action if found, None otherwise
         """
+        # Convert list to string if needed
+        state_str = ''.join(state) if isinstance(state, list) else state
+        
         result = self.db.execute_query("""
             SELECT action
             FROM mcts_simulations
             WHERE state = ?
             ORDER BY reward DESC
             LIMIT 1
-        """, (state,))
+        """, (state_str,))
         
         return result[0]['action'] if result else None
         
@@ -115,13 +134,21 @@ class MCTSRepository:
         Returns:
             int: Number of entries removed
         """
+        # First get the count of rows that will be deleted
         result = self.db.execute_query("""
+            SELECT COUNT(*) as count
+            FROM mcts_simulations
+            WHERE updated_at < datetime('now', ?)
+        """, (f"-{days} days",))
+        count = result[0]['count'] if result else 0
+        
+        # Then delete the rows
+        self.db.execute_query("""
             DELETE FROM mcts_simulations
             WHERE updated_at < datetime('now', ?)
-            SELECT changes()
         """, (f"-{days} days",))
         
-        return result[0]['changes()'] if result else 0
+        return count
         
     def get_learning_stats(self) -> Dict:
         """

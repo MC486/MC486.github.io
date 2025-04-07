@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
 from .manager import DatabaseManager
 from .repositories.word_repository import WordRepository
@@ -7,7 +7,8 @@ from .repositories.category_repository import CategoryRepository
 from .repositories.naive_bayes_repository import NaiveBayesRepository
 from .repositories.mcts_repository import MCTSRepository
 from .repositories.q_learning_repository import QLearningRepository
-from .repositories.markov_repository import MarkovChainRepository
+from .repositories.markov_repository import MarkovRepository
+from .repositories.game_repository import GameRepository
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +47,8 @@ class RepositoryManager:
         self.repositories['naive_bayes'] = NaiveBayesRepository(self.db_manager)
         self.repositories['mcts'] = MCTSRepository(self.db_manager)
         self.repositories['q_learning'] = QLearningRepository(self.db_manager)
-        self.repositories['markov_chain'] = MarkovChainRepository(self.db_manager)
+        self.repositories['markov_chain'] = MarkovRepository(self.db_manager)
+        self.repositories['game'] = GameRepository(self.db_manager)
         
         # Initialize last cleanup times
         now = datetime.now()
@@ -67,12 +69,13 @@ class RepositoryManager:
         """
         return self.repositories.get(name)
         
-    def cleanup_old_entries(self, force: bool = False) -> None:
+    def cleanup_old_entries(self, force: bool = False, days: int = 30) -> None:
         """
         Clean up old entries in all repositories.
         
         Args:
             force: If True, perform cleanup regardless of interval
+            days: Number of days to keep entries for (default: 30)
         """
         now = datetime.now()
         
@@ -83,7 +86,7 @@ class RepositoryManager:
             if force or (interval and last_clean and (now - last_clean) >= interval):
                 try:
                     logger.info(f"Cleaning up {repo_name} repository")
-                    repo.cleanup_old_entries()
+                    repo.cleanup_old_entries(days)
                     self.last_cleanup[repo_name] = now
                 except Exception as e:
                     logger.error(f"Error cleaning up {repo_name} repository: {str(e)}")
