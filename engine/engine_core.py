@@ -9,6 +9,8 @@ from engine.game_loop import GameLoop
 from core.game_events import EventType
 from core.game_events_manager import GameEventManager
 from engine.game_state import GameState
+from database.manager import DatabaseManager
+from database.repository_manager import RepositoryManager
 
 def setup_logging():
     """
@@ -58,8 +60,22 @@ def main():
     logger.info(f"Log file: {log_file}")
     
     try:
+        # Initialize database manager
+        db_path = Path("data/game.db")
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        db_manager = DatabaseManager(db_path=str(db_path))
+        logger.info("Database manager initialized")
+        
+        # Initialize repository manager
+        repo_manager = RepositoryManager(db_manager)
+        logger.info("Repository manager initialized")
+        
+        # Perform initial cleanup
+        repo_manager.cleanup_old_entries(force=True)
+        logger.info("Initial repository cleanup completed")
+        
         # Initialize and start game
-        game_loop = GameLoop()
+        game_loop = GameLoop(db_manager=db_manager, repo_manager=repo_manager)
         game_loop.start()
     except Exception as e:
         logger.error(f"Game crashed: {str(e)}", exc_info=True)

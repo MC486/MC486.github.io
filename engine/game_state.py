@@ -7,9 +7,12 @@ from dataclasses import dataclass
 from core.letter_pool import generate_letter_pool
 from core.word_scoring import score_word
 from core.validation.word_validator import WordValidator
+from core.validation.trie import Trie
 from core.game_events import GameEvent, EventType
 from core.game_events_manager import GameEventManager
-from ai.ai_strategy import AIStrategy
+from ai.strategy.ai_strategy import AIStrategy
+from database.manager import DatabaseManager
+from database.repository_manager import RepositoryManager
 
 logger = logging.getLogger(__name__)
 
@@ -38,13 +41,42 @@ class GameState:
     Manages the current game state and handles game progress.
     Integrates event system while maintaining original functionality.
     """
-    def __init__(self, event_manager: GameEventManager):
+    def __init__(
+        self,
+        event_manager: GameEventManager,
+        db_manager: DatabaseManager,
+        repo_manager: RepositoryManager
+    ):
+        """
+        Initialize the game state.
+        
+        Args:
+            event_manager: Event manager for handling game events
+            db_manager: Database manager for data persistence
+            repo_manager: Repository manager for AI model data
+        """
+        self.event_manager = event_manager
+        self.db_manager = db_manager
+        self.repo_manager = repo_manager
+        
+        # Get repositories
+        self.word_repo = self.repo_manager.get_repository('word')
+        self.category_repo = self.repo_manager.get_repository('category')
+        
+        # Initialize game components
+        self.word_validator = WordValidator(self.word_repo)
+        self.trie = Trie()
+        self.ai_strategy = AIStrategy(
+            event_manager=self.event_manager,
+            db_manager=self.db_manager,
+            word_repo=self.word_repo,
+            category_repo=self.category_repo
+        )
+        
         # Original initialization
-        self.word_validator = WordValidator(use_nltk=True)
         self.is_game_over = False
         
         # Enhanced state tracking
-        self.event_manager = event_manager
         self.phase = GamePhase.SETUP
         self.start_time: Optional[datetime] = None
         self.end_time: Optional[datetime] = None
@@ -57,11 +89,10 @@ class GameState:
         self.shared_letters: List[str] = []
         self.boggle_letters: List[str] = []
         
-        # AI Strategy
-        self.ai_strategy = AIStrategy(event_manager, difficulty='medium')
-        
         # Setup event subscriptions
         self._setup_event_subscriptions()
+        
+        logger.info("GameState initialized with repository manager")
         
     def _setup_event_subscriptions(self) -> None:
         """Setup all event subscriptions for game state management"""
@@ -178,7 +209,7 @@ class GameState:
             print("⚠️ You already used this word. Score will be reduced. ⚠️")
 
         # Score calculation
-        score = score_word(word, repeat_count)
+        score = score_word(word, self.word_validator)
         self.human_player.score += score
         self.human_player.used_words.add(word)
         self.human_player.word_usage_counts[word] = repeat_count + 1
@@ -251,6 +282,30 @@ class GameState:
             duration = (self.end_time - self.start_time).total_seconds()
             print(f"Game Duration: {duration:.1f} seconds")
             
+        # Display AI learning statistics
+        ai_stats = self.get_ai_stats()
+        if ai_stats:
+            print("\n=== AI Learning Statistics ===")
+            print(f"Total Words Analyzed: {len(ai_stats.get('word_analyzer', []))}")
+            print(f"Words Used: {len(ai_stats.get('used_words', []))}")
+            
+            # Display category statistics
+            category_stats = ai_stats.get('category_stats', {})
+            if category_stats:
+                print("\n=== Category Statistics ===")
+                print(f"Total Categories: {category_stats.get('total_categories', 0)}")
+                print("\nCategory Word Counts:")
+                for category, count in category_stats.get('category_word_counts', {}).items():
+                    print(f"  {category}: {count} words")
+            
+            # Display model-specific statistics
+            print("\n=== Model Statistics ===")
+            for model, stats in ai_stats.items():
+                if model not in ['word_analyzer', 'category_stats', 'used_words', 'word_success', 'confidence_threshold']:
+                    print(f"\n{model.replace('_', ' ').title()}:")
+                    for key, value in stats.items():
+                        print(f"  {key}: {value}")
+            
         print("================\n")
 
     def process_ai_turn(self) -> None:
@@ -280,7 +335,7 @@ class GameState:
         logger.info(f"Word '{ai_word}' has been used {repeat_count} times before")
         
         # Score calculation
-        score = score_word(ai_word, repeat_count)
+        score = score_word(ai_word, self.word_validator)
         self.ai_player.score += score
         self.ai_player.used_words.add(ai_word)
         self.ai_player.word_usage_counts[ai_word] = repeat_count + 1
@@ -303,3 +358,23 @@ class GameState:
         if self.human_player.last_played_word and ai_word == self.human_player.last_played_word:
             print(f"🤖 AI guessed your word! It was '{ai_word}'. 🤯")
             self.end_game()
+
+    def cleanup(self) -> None:
+        """Clean up old entries in repositories."""
+        try:
+            self.repo_manager.cleanup_old_entries()
+            logger.info("Repository cleanup completed")
+        except Exception as e:
+            logger.error(f"Error during repository cleanup: {str(e)}")
+            
+    def get_ai_stats(self) -> Dict:
+        """Get AI learning statistics."""
+        if hasattr(self, 'ai_strategy'):
+            stats = self.ai_strategy.get_learning_stats()
+            
+            # Add repository statistics
+            repo_stats = self.repo_manager.get_repository_stats()
+            stats['repositories'] = repo_stats
+            
+            return stats
+        return {}

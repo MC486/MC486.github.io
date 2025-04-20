@@ -5,18 +5,23 @@ from typing import List, Dict, Any, Optional
 import logging
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, classification_report
+from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 
 class WordNaiveBayes:
-    def __init__(self, ngram_range: tuple = (2, 3)):
-        """
-        Initialize the Naive Bayes classifier for word prediction.
-        
-        Args:
-            ngram_range: Range of n-gram sizes to use (default: (2, 3))
-        """
-        self.vectorizer = CountVectorizer(analyzer='char', ngram_range=ngram_range)
+    """
+    Naive Bayes classifier for word prediction.
+    Uses word frequencies and patterns to estimate probabilities.
+    """
+    def __init__(self):
+        """Initialize the Naive Bayes classifier."""
+        self.word_counts = {}
+        self.total_words = 0
+        self.letter_counts = defaultdict(int)
+        self.position_counts = defaultdict(lambda: defaultdict(int))
+        self.pattern_counts = defaultdict(int)
+        self.vectorizer = CountVectorizer(analyzer='char', ngram_range=(2, 3))
         self.classifier = MultinomialNB()
         self.is_trained = False
         self.feature_names = None

@@ -5,31 +5,49 @@ from core.game_events import GameEvent, EventType
 from core.game_events_manager import GameEventManager
 from ai.word_analysis import WordFrequencyAnalyzer
 import logging
+from database.repositories.q_learning_repository import QLearningRepository
+from dataclasses import dataclass
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
-class QLearningAgent:
-    """
-    Q-Learning agent for word selection strategy.
-    Uses reinforcement learning to optimize word choices based on game state.
-    """
-    def __init__(self, event_manager: GameEventManager, word_analyzer: WordFrequencyAnalyzer,
-                 learning_rate: float = 0.1, discount_factor: float = 0.9,
+@dataclass
+class TrainingMetrics:
+    """Container for training metrics."""
+    loss: float
+    epsilon: float
+    memory_size: int
+    timestamp: str
+
+class QLearning:
+    """Q-Learning model for word prediction."""
+    def __init__(self, event_manager: Optional[GameEventManager] = None,
+                 word_analyzer: Optional[WordFrequencyAnalyzer] = None,
+                 q_learning_repository: Optional[QLearningRepository] = None,
+                 learning_rate: float = 0.1,
+                 discount_factor: float = 0.9,
                  exploration_rate: float = 0.2):
         self.event_manager = event_manager
         self.word_analyzer = word_analyzer
+        self.repository = q_learning_repository
         self.learning_rate = learning_rate
         self.discount_factor = discount_factor
         self.exploration_rate = exploration_rate
+        self.q_table: Dict[str, Dict[str, float]] = {}
+        self.is_trained = False
         
-        # Q-table: state -> action -> value mapping
-        self.q_table: Dict[str, Dict[str, float]] = defaultdict(lambda: defaultdict(float))
-        
-        # Track current state and last action
-        self.current_state: Optional[str] = None
-        self.last_action: Optional[str] = None
-        
-        self._setup_event_subscriptions()
+    def choose_action(self, state: str) -> str:
+        """Choose an action (next letter) based on the current state."""
+        if not self.q_table or state not in self.q_table:
+            return random.choice(list(state))
+            
+        # Exploration: choose random action
+        if random.random() < self.exploration_rate:
+            return random.choice(list(state))
+            
+        # Exploitation: choose best action
+        actions = self.q_table[state]
+        return max(actions.items(), key=lambda x: x[1])[0]
     
     def _setup_event_subscriptions(self) -> None:
         """Setup event subscriptions for model updates"""
@@ -96,3 +114,27 @@ class QLearningAgent:
         best_action = max(valid_actions.items(), key=lambda x: x[1])[0]
         self.last_action = best_action
         return best_action
+
+    def _load_from_repository(self) -> None:
+        """Load Q-values and training metrics from repository"""
+        try:
+            # Load Q-values
+            q_values = self.repository.get_q_values()
+            if q_values:
+                self.q_table.clear()
+                for state, actions in q_values.items():
+                    self.q_table[state].update(actions)
+            
+            # Load training metrics
+            metrics = self.repository.get_training_metrics()
+            if metrics:
+                self.training_metrics = [
+                    TrainingMetrics(
+                        loss=m['loss'],
+                        epsilon=m['epsilon'],
+                        memory_size=m['memory_size'],
+                        timestamp=m['timestamp']
+                    ) for m in metrics
+                ]
+        except Exception as e:
+            logger.warning(f"Failed to load from repository: {e}") 

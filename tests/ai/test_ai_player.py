@@ -4,20 +4,28 @@ from ai.ai_player import AIPlayer
 from core.game_events import GameEvent, EventType, GameEventManager
 from ai.word_analysis import WordFrequencyAnalyzer
 from ai.strategy.ai_strategy import AIStrategy
+from database.manager import DatabaseManager
 
 class TestAIPlayer(unittest.TestCase):
     def setUp(self):
         """Setup test environment before each test"""
         self.event_manager = Mock(spec=GameEventManager)
-        self.word_analyzer = Mock(spec=WordFrequencyAnalyzer)
+        self.db_manager = Mock(spec=DatabaseManager)
         self.strategy = Mock(spec=AIStrategy)
-        self.ai_player = AIPlayer(self.event_manager, self.word_analyzer, self.strategy)
+        self.ai_player = AIPlayer(self.event_manager, self.db_manager, self.strategy)
+        
+        # Mock repositories
+        self.word_repo = Mock()
+        self.db_manager.get_word_usage_repository.return_value = self.word_repo
 
     def test_initialization(self):
         """Test proper initialization"""
         self.assertEqual(self.ai_player.score, 0)
         self.assertEqual(len(self.ai_player.word_history), 0)
         self.assertIsNotNone(self.ai_player.strategy)
+        
+        # Verify repository initialization
+        self.db_manager.get_word_usage_repository.assert_called_once()
 
     def test_make_move(self):
         """Test AI move generation"""
@@ -30,6 +38,9 @@ class TestAIPlayer(unittest.TestCase):
         
         self.assertEqual(word, "BACK")
         self.strategy.get_word_suggestion.assert_called_once_with(available_letters)
+        
+        # Verify repository usage
+        self.word_repo.record_word_usage.assert_called_once()
 
     def test_handle_word_validation(self):
         """Test handling of word validation events"""
@@ -47,6 +58,9 @@ class TestAIPlayer(unittest.TestCase):
         
         self.assertEqual(self.ai_player.score, 5)
         self.assertIn("HELLO", self.ai_player.word_history)
+        
+        # Verify repository updates
+        self.word_repo.record_word_usage.assert_called_once()
 
     def test_handle_game_start(self):
         """Test game start event handling"""
@@ -63,6 +77,9 @@ class TestAIPlayer(unittest.TestCase):
         self.assertEqual(self.ai_player.score, 0)
         self.assertEqual(len(self.ai_player.word_history), 0)
         self.strategy.reset.assert_called_once()
+        
+        # Verify repository reset
+        self.word_repo.cleanup_old_entries.assert_called_once()
 
     def test_handle_turn_start(self):
         """Test turn start event handling"""
@@ -99,6 +116,9 @@ class TestAIPlayer(unittest.TestCase):
         
         self.assertEqual(word, "WORLD")
         self.assertEqual(self.strategy.get_word_suggestion.call_count, 2)
+        
+        # Verify repository usage
+        self.word_repo.get_by_word.assert_called()
 
     def test_performance_tracking(self):
         """Test performance statistics tracking"""
@@ -119,6 +139,9 @@ class TestAIPlayer(unittest.TestCase):
         self.assertEqual(stats["total_words"], 3)
         self.assertEqual(stats["valid_words"], 2)
         self.assertEqual(stats["total_score"], 10)
+        
+        # Verify repository usage
+        self.word_repo.get_word_stats.assert_called_once()
 
     def test_event_subscription(self):
         """Test proper event subscriptions"""

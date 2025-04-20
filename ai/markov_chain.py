@@ -1,17 +1,18 @@
 import numpy as np
-from collections import defaultdict
 from typing import List, Optional
 import logging
+from database.repositories.markov_repository import MarkovRepository
 
 logger = logging.getLogger(__name__)
 
 class MarkovChain:
-    def __init__(self, order: int = 2):
+    def __init__(self, order: int = 2, repository: Optional[MarkovRepository] = None):
         """
         Initialize the Markov Chain with a specified order.
         
         Args:
             order (int): The order of the Markov Chain (default: 2)
+            repository (Optional[MarkovRepository]): Repository for persistence
             
         Raises:
             ValueError: If order is less than 1
@@ -19,9 +20,7 @@ class MarkovChain:
         if order < 1:
             raise ValueError("Order must be at least 1")
         self.order = order
-        # Use nested defaultdict to automatically initialize transition counts
-        self.transitions = defaultdict(lambda: defaultdict(int))
-        self.start_states = defaultdict(int)
+        self.repository = repository
         self.is_trained = False
         
     def train(self, word_list: List[str]) -> None:
@@ -33,7 +32,11 @@ class MarkovChain:
             
         Raises:
             ValueError: If word_list is empty or contains invalid words
+            RuntimeError: If repository is not set
         """
+        if not self.repository:
+            raise RuntimeError("Repository must be set before training")
+            
         if not word_list:
             raise ValueError("Training data cannot be empty")
             
@@ -50,13 +53,13 @@ class MarkovChain:
                 
             # Track frequency of starting sequences
             start_state = word[:self.order].lower()
-            self.start_states[start_state] += 1
+            self.repository.record_transition("START", start_state)
             
             # Build transition matrix: count occurrences of each character following each state
             for i in range(len(word) - self.order):
                 current_state = word[i:i+self.order].lower()
                 next_char = word[i+self.order].lower()
-                self.transitions[current_state][next_char] += 1
+                self.repository.record_transition(current_state, next_char)
                 
         self.is_trained = True
         logger.info("Markov Chain training completed")
@@ -73,43 +76,39 @@ class MarkovChain:
             Optional[str]: Generated word or None if generation fails
             
         Raises:
-            RuntimeError: If the model is not trained
+            RuntimeError: If the model is not trained or repository is not set
         """
+        if not self.repository:
+            raise RuntimeError("Repository must be set before generating words")
+            
         if not self.is_trained:
             raise RuntimeError("Model must be trained before generating words")
             
         if max_length < min_length:
             raise ValueError("max_length must be greater than or equal to min_length")
             
-        if not self.start_states:
-            logger.warning("No start states available for word generation")
-            return None
-            
-        # Convert start state frequencies to probabilities
-        start_states = list(self.start_states.keys())
-        start_probs = np.array(list(self.start_states.values()))
-        start_probs = start_probs / start_probs.sum()
-        
         try:
-            # Select initial state based on frequency distribution
-            current_state = np.random.choice(start_states, p=start_probs)
+            # Get start state probabilities
+            start_probs = self.repository.get_state_probabilities("START")
+            if not start_probs:
+                logger.warning("No start states available for word generation")
+                return None
+                
+            # Select initial state based on probability distribution
+            start_states = list(start_probs.keys())
+            probs = list(start_probs.values())
+            current_state = np.random.choice(start_states, p=probs)
             word = current_state
             
             # Generate word character by character using transition probabilities
             while len(word) < max_length:
-                if current_state not in self.transitions:
+                next_probs = self.repository.get_state_probabilities(current_state)
+                if not next_probs:
                     break
                     
-                # Get possible next characters and their probabilities
-                next_chars = list(self.transitions[current_state].keys())
-                if not next_chars:
-                    break
-                    
-                # Convert transition counts to probabilities
-                probs = np.array(list(self.transitions[current_state].values()))
-                probs = probs / probs.sum()
-                
                 # Select next character based on transition probabilities
+                next_chars = list(next_probs.keys())
+                probs = list(next_probs.values())
                 next_char = np.random.choice(next_chars, p=probs)
                 word += next_char
                 current_state = word[-self.order:]
@@ -131,21 +130,17 @@ class MarkovChain:
             
         Returns:
             Optional[dict]: Dictionary of next characters and their probabilities
+            
+        Raises:
+            RuntimeError: If repository is not set
         """
+        if not self.repository:
+            raise RuntimeError("Repository must be set before getting probabilities")
+            
         if not self.is_trained:
             raise RuntimeError("Model must be trained before getting probabilities")
             
-        state = state.lower()
-        if state not in self.transitions:
-            return None
-            
-        # Convert transition counts to probabilities
-        transitions = self.transitions[state]
-        total = sum(transitions.values())
-        if total == 0:
-            return None
-            
-        return {char: count/total for char, count in transitions.items()}
+        return self.repository.get_state_probabilities(state.lower())
         
     def save(self, filepath: str) -> None:
         """
@@ -159,8 +154,6 @@ class MarkovChain:
         with open(filepath, 'wb') as f:
             pickle.dump({
                 'order': self.order,
-                'transitions': dict(self.transitions),
-                'start_states': dict(self.start_states),
                 'is_trained': self.is_trained
             }, f)
             
@@ -181,11 +174,6 @@ class MarkovChain:
                 data = pickle.load(f)
                 
             self.order = data['order']
-            # Restore defaultdict structure
-            self.transitions = defaultdict(lambda: defaultdict(int))
-            for state, transitions in data['transitions'].items():
-                self.transitions[state].update(transitions)
-            self.start_states = defaultdict(int, data['start_states'])
             self.is_trained = data['is_trained']
             
         except FileNotFoundError:
