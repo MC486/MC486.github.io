@@ -233,6 +233,14 @@
           <div class="code-viewer"><pre><code id="q-learning-code">// Loading...</code></pre></div>
         </details>
         <details>
+          <p>This MarkovChain class implements a probabilistic language model for my word strategy game's AI. It builds 
+            a transition matrix that maps sequences of letters to their likely next characters based on analyzed word patterns. 
+            The model can generate new words by probabilistically walking this transition graph while respecting available letter 
+            constraints. It maintains both start probabilities (how words typically begin) and transition probabilities (how letters 
+            follow each other), and can be trained on word lists, updated based on successful word scores, and persist its learning 
+            through a repository system. The implementation includes validation to ensure generated words meet minimum length requirements 
+            and follow dictionary rules, with configurable order parameters to control how many previous letters influence the next character 
+            choice.</p>
           <summary>Markov Chains (markov_chain.py)</summary>
           <div class="code-viewer"><pre><code id="markov-code">// Loading...</code></pre></div>
         </details>
