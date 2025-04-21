@@ -1,138 +1,162 @@
 # AI Word Strategy Game
 
-A word-building game featuring AI opponents using various machine learning strategies. Players compete against AI that learns and adapts to gameplay patterns.
+A turn-based word-building game where players compete against AI opponents trained on real dictionary data and evolving gameplay patterns. Developed as a capstone enhancement project to demonstrate software design, AI integration, and long-term extensibility.
 
-## Features
+---
 
-### Core Game
-- Word building with shared and private letter pools
-- Dynamic scoring system with letter rarity and word length bonuses
-- Real-time word validation using Trie-based dictionary
-- Turn-based gameplay with time limits
+##  Features
 
-### AI Opponents
-- Multiple AI strategies:
-  - Q-Learning: Learns optimal word selection through reinforcement learning
-  - Naive Bayes: Uses probabilistic word selection based on letter patterns
-  - Markov Chain: Predicts word patterns based on letter sequences
-  - Monte Carlo Tree Search: Explores possible word combinations
-- Adaptive difficulty levels
-- Word pattern analysis and learning
-- Training system for AI improvement
+###  Core Game
+- Strategic word creation using shared and private letter pools
+- Dynamic scoring system with:
+  - Word length bonuses
+  - Letter rarity multipliers
+  - Repeat-word fatigue penalties
+- Clean CLI interface for fast-paced turn-based play
+- Real-time word validation using Trie-backed dictionary
 
-### Technical Features
-- Event-driven architecture
-- Modular AI strategy system
-- Comprehensive test coverage
-- Configurable game parameters
-- Logging and debugging tools
+###  AI Opponents
+- Multiple AI models:
+  - **Q-Learning** – Reinforcement agent learns long-term reward patterns
+  - **Naive Bayes** – Predicts player words using letter-based probabilities
+  - **Markov Chain** – Generates plausible letter transitions
+  - **Monte Carlo Tree Search** – Simulates possible move sequences
+- Weighted ensemble prediction with model selection via Q-learning
+- Adaptive behavior based on opponent style
 
-## Installation
+###  Database Integration
+- SQLite-based persistent storage
+- Player profile and scoring history
+- AI model training data persistence
+- Performance analytics and leaderboards
 
-1. Clone the repository:
+###  Technical Highlights
+- Modular game engine architecture
+- Fully tested game loop, state, input, scoring, and letter generation
+- `config.yaml` for tunable gameplay settings
+- Structured logs for debugging and gameplay review
+- Clean Git branching and feature isolation per enhancement
 
+---
+
+##  Installation
+
+```
 git clone https://github.com/yourusername/MC486.github.io.git
 cd MC486.github.io
+```
 
+Create and activate a virtual environment:
 
-2. Create and activate virtual environment:
-
+```
 python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+.venv\Scripts\activate      # Windows
+# or
+source .venv/bin/activate   # macOS/Linux
+```
 
+Install dependencies:
 
-3. Install dependencies:
-
+```
 pip install -r requirements.txt
+```
 
+---
 
-4. Configure the game:
+##  Usage
 
-cp config.yaml.example config.yaml
-# Edit config.yaml with your preferred settings
+Start the game:
 
+```
+python main.py
+```
 
-## Usage
+### In-Game Commands
+- Type a word using available letters
+- `boggle` — Redraw private letters
+- `quit` — Exit the game
+- `help` — Show full command list
+- `stats` — View your gameplay statistics
 
-### Starting the Game
+---
 
-python game_app.py
+##  Project Structure
 
-
-### Game Controls
-- Enter words using available letters
-- Type 'boggle' to request new letters
-- Type 'quit' to end the game
-- Type 'help' for more commands
-
-### AI Training
-To train the AI models:
-
-python -m ai.training.train_models
-
-
-## Project Structure
-
-
+```
 .
-├── ai/                    # AI components
-│   ├── models/           # AI model implementations
-│   ├── strategy/         # AI strategy system
-│   ├── training/         # AI training utilities
-│   └── word_analysis.py  # Word pattern analysis
-├── core/                  # Core game components
-│   ├── validation/       # Word validation system
-│   ├── letter_pool.py    # Letter pool management
-│   └── word_scoring.py   # Scoring system
-├── engine/               # Game engine
-│   ├── game_loop.py      # Main game loop
-│   ├── game_state.py     # Game state management
-│   └── input_handler.py  # Input processing
-├── tests/                # Test suite
-│   ├── ai/              # AI component tests
-│   ├── core/            # Core component tests
-│   └── validation/      # Validation tests
-├── utils/               # Utility functions
-├── config.yaml          # Game configuration
-└── game_app.py          # Main application entry
+├── ai/
+│   ├── markov_model.py
+│   ├── mcts_model.py
+│   ├── naive_bayes_model.py
+│   ├── q_learning_model.py
+│   └── trie_validator.py
+├── core/
+│   ├── letter_pool.py
+│   ├── word_scoring.py
+│   └── player.py
+├── engine/
+│   ├── game_loop.py
+│   ├── game_state.py
+│   └── input_handler.py
+├── tests/
+│   ├── test_game_loop.py
+│   ├── test_game_state.py
+│   ├── test_input_handler.py
+│   ├── test_letter_pool.py
+│   ├── test_word_list_loader.py
+│   └── test_word_scoring.py
+├── utils/
+│   └── word_list_loader.py
+├── database/
+│   ├── schema.sql
+│   ├── db.py
+│   └── db_helpers.py
+├── config.yaml
+├── requirements.txt
+└── main.py
+```
 
+---
 
-## Configuration
+##  Testing
 
-The game can be configured through `config.yaml`:
-- Game settings (word lengths, scoring)
-- Letter pool configuration
-- AI model parameters
-- Dictionary settings
-- Logging options
+Run the full test suite:
 
-See `config.yaml.example` for all available options.
-
-## Testing
-
-Run the test suite:
-
+```
 pytest
+```
 
+All modules are tested including game state handling, letter generation logic, scoring algorithms, input parsing, AI models, and database operations.
 
-## Development Status
+---
 
-### Completed (Enhancements 1/2)
-- Core game mechanics
-- Word validation system
-- AI model implementations
-- Training system
-- Event system
-- Test coverage
+##  Configuration
 
-### In Progress (Enhancement 3)
-- Database integration
-- Game history tracking
-- Player statistics
-- Scoreboard system
-- Database-enabled AI learning
+Edit `config.yaml` to customize:
+- Letter pool size and distribution
+- Scoring rules and fatigue settings
+- AI prediction time budget (for MCTS)
+- Logging verbosity and format
+- Database connection parameters
 
-## Acknowledgments
+---
 
-- NLTK for word processing
-- Word frequency data sources
+##  Development Status
+
+### ✅ Enhancement 1: Software Design & Engineering
+-  Modular architecture and class hierarchy
+-  Letter generation logic
+-  Scoring and repeat-word fatigue
+-  Logging, testing, and config system
+
+### ✅ Enhancement 2: Algorithms & ML Integration
+-  AI model architecture implementation
+-  Markov, MCTS, Q-learning, Naive Bayes modules completed
+-  Prediction pipeline and ensemble model
+
+### ✅ Enhancement 3: Database & Persistence
+-  SQLite integration
+-  AI learning from gameplay history
+-  Player analytics and scoreboards
+
+---
