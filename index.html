@@ -106,123 +106,135 @@
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>Welcome to My AI Word Game Portfolio</h1>
-    <p>This portfolio showcases my AI-powered word game, which enhances Q-learning reinforcement learning previously showcased in my Pirate Maze project with Monte Carlo, Markov Chains, and Naïve Bayes models.</p>
-
-    <h2>📌 Professional Self-Assessment</h2>
-    <div id="professional" class="pdf-viewer">
-      <iframe src="docs/professional-assessment.pdf" width="100%" height="600px"></iframe>
-    </div>
-
-    <h2>🎥 Code Review Walkthrough</h2>
-    <div class="video-container">
-      <iframe width="560" height="315" src="https://www.youtube.com/embed/qYYgzhYkr7c?si=eg5-GqqfuhZpbfU1" title="Video Code Review" frameborder="0" allowfullscreen></iframe>
-    </div>
-
-    <a href="https://github.com/MC486/MC486.github.io" class="button" target="_blank">🔗 GitHub Repository</a>
-
-    <h2>💻 Featured Python Code Samples</h2>
-    <div class="tabs">
-      <button class="tab-button active" onclick="openTab(event, 'tab1')">Software Design</button>
-      <button class="tab-button" onclick="openTab(event, 'tab2')">Algorithms & AI</button>
-      <button class="tab-button" onclick="openTab(event, 'tab3')">Databases</button>
-    </div>
-
-    <div id="tab1" class="tab-content active-tab">
-      <details open>
-        <summary>game_loop.py</summary>
-        <div class="code-viewer"><pre><code id="game-loop-code">// Loading...</code></pre></div>
-      </details>
-      <details>
-        <summary>game_state.py</summary>
-        <div class="code-viewer"><pre><code id="game-state-code">// Loading...</code></pre></div>
-      </details>
-      <details>
-        <summary>engine_core.py</summary>
-        <div class="code-viewer"><pre><code id="engine-core-code">// Loading...</code></pre></div>
-      </details>
-      <details>
-        <summary>input_handler.py</summary>
-        <div class="code-viewer"><pre><code id="input-handler-code">// Loading...</code></pre></div>
-      </details>
-    </div>
-
-    <div id="tab2" class="tab-content">
-      <details open>
-        <summary>Q-Learning (q_learning_model.py)</summary>
-        <div class="code-viewer"><pre><code id="q-learning-code">// Loading...</code></pre></div>
-      </details>
-      <details>
-        <summary>Markov Chains (markov_chain.py)</summary>
-        <div class="code-viewer"><pre><code id="markov-code">// Loading...</code></pre></div>
-      </details>
-      <details>
-        <summary>Monte Carlo Tree Search (mcts.py)</summary>
-        <div class="code-viewer"><pre><code id="mcts-code">// Loading...</code></pre></div>
-      </details>
-      <details>
-        <summary>Naive Bayes (naive_bayes.py)</summary>
-        <div class="code-viewer"><pre><code id="naive-code">// Loading...</code></pre></div>
-      </details>
-    </div>
-
-    <div id="tab3" class="tab-content">
-      <details open>
-        <summary>manager.py</summary>
-        <div class="code-viewer"><pre><code id="db-manager-code">// Loading...</code></pre></div>
-      </details>
-      <details>
-        <summary>base_repository.py</summary>
-        <div class="code-viewer"><pre><code id="repo-base-code">// Loading...</code></pre></div>
-      </details>
-    </div>
-
-    <h2>📄 Explore My Enhancement Narratives</h2>
-    <div class="pdf-viewer">
-      <h3>Enhancement 1 Narrative</h3>
-      <iframe src="docs/enhancement1.pdf" width="100%" height="600px"></iframe>
-    </div>
-    <div class="pdf-viewer">
-      <h3>Enhancement 2 Narrative</h3>
-      <iframe src="docs/enhancement2.pdf" width="100%" height="600px"></iframe>
-    </div>
-    <div class="pdf-viewer">
-      <h3>Enhancement 3 Narrative</h3>
-      <iframe src="docs/enhancement3.pdf" width="100%" height="600px"></iframe>
-    </div>
-  </div>
-
-  <script>
-    function openTab(evt, tabId) {
-      const tabContents = document.querySelectorAll(".tab-content");
-      const tabButtons = document.querySelectorAll(".tab-button");
-
-      tabContents.forEach(tab => tab.classList.remove("active-tab"));
-      tabButtons.forEach(btn => btn.classList.remove("active"));
-
-      document.getElementById(tabId).classList.add("active-tab");
-      evt.currentTarget.classList.add("active");
-    }
-
-    async function loadCode(file, elementId) {
-      const res = await fetch(file);
-      const text = await res.text();
-      document.getElementById(elementId).textContent = text;
-    }
-
-    loadCode('engine/game_loop.py', 'game-loop-code');
-    loadCode('engine/game_state.py', 'game-state-code');
-    loadCode('engine/engine_core.py', 'engine-core-code');
-    loadCode('engine/input_handler.py', 'input-handler-code');
-
-    loadCode('ai/models/q_learning_model.py', 'q-learning-code');
-    loadCode('ai/models/markov_chain.py', 'markov-code');
-    loadCode('ai/models/mcts.py', 'mcts-code');
-    loadCode('ai/models/naive_bayes.py', 'naive-code');
-
-    loadCode('database/manager.py', 'db-manager-code');
-    loadCode('database/repositories/base_repository.py', 'repo-base-code');
-  </script>
+    <div class="container">
+        <h1>Welcome to My AI Word Game Portfolio</h1>
+        <p>
+          This portfolio showcases the design, evolution, and enhancement of my Python-based AI Word Strategy Game,
+          developed as the capstone project for my Bachelor of Science in Computer Science at Southern New Hampshire University.
+          The project builds on my prior Q-learning AI maze solver and evolves it into a modular, extensible word game framework
+          with future AI intelligence and persistent gameplay tracking. This site presents the game, its enhancements,
+          and the technical foundations that power it.
+        </p>
+      
+        <h2>👤 About Me</h2>
+        <p>
+          My name is <strong>Michael Crevier</strong>. I'm a computer science graduate with a focus on software engineering,
+          AI algorithms, and data-driven development. I interned with Disney's Decision Science team, where I contributed to
+          forecasting pipelines and model accuracy testing for media analytics. My professional interests include machine
+          learning, data engineering, and AI-driven applications that enhance interactivity and strategy.
+          This portfolio project reflects my technical range—from reinforcement learning to structured software architecture.
+        </p>
+      
+        <h2>📌 Professional Self-Assessment</h2>
+        <div class="pdf-viewer">
+          <iframe src="docs/professional-assessment.pdf" width="100%" height="600px"></iframe>
+        </div>
+      
+        <h2>🎥 Code Review Walkthrough</h2>
+        <div class="video-container">
+          <iframe width="560" height="315" src="https://www.youtube.com/embed/qYYgzhYkr7c?si=eg5-GqqfuhZpbfU1" title="Video Code Review" frameborder="0" allowfullscreen></iframe>
+        </div>
+        <p>
+          This video provides a guided walkthrough of the code transformation from a maze-solving AI to a turn-based
+          word strategy game. It highlights the core logic, modular structure, game loop behavior, scoring system, and plans
+          for future AI enhancements. I walk through class structures, design justifications, and the broader vision
+          for reinforcement learning beyond simple spatial navigation.
+        </p>
+      
+        <a href="https://github.com/MC486/MC486.github.io" class="button" target="_blank">🔗 GitHub Repository</a>
+      
+        <h2>💻 Featured Python Code Samples</h2>
+        <div class="tabs">
+          <button class="tab-button active" onclick="openTab(event, 'tab1')">Software Design</button>
+          <button class="tab-button" onclick="openTab(event, 'tab2')">Algorithms & AI</button>
+          <button class="tab-button" onclick="openTab(event, 'tab3')">Databases</button>
+        </div>
+      
+        <div id="tab1" class="tab-content active-tab">
+          <p>This section showcases core gameplay structure, user input handling, and game state management logic.</p>
+      
+          <details open>
+            <summary>game_loop.py</summary>
+            <div class="code-viewer"><pre><code id="game-loop-code">// Loading...</code></pre></div>
+          </details>
+          <details>
+            <summary>game_state.py</summary>
+            <div class="code-viewer"><pre><code id="game-state-code">// Loading...</code></pre></div>
+          </details>
+          <details>
+            <summary>engine_core.py</summary>
+            <div class="code-viewer"><pre><code id="engine-core-code">// Loading...</code></pre></div>
+          </details>
+          <details>
+            <summary>input_handler.py</summary>
+            <div class="code-viewer"><pre><code id="input-handler-code">// Loading...</code></pre></div>
+          </details>
+        </div>
+      
+        <div id="tab2" class="tab-content">
+          <p>
+            These files (part of future enhancements) implement multiple AI prediction techniques.
+            The AI uses a hybrid decision process across multiple models—Markov chains for transition probabilities,
+            Monte Carlo Tree Search for lookahead strategy, Naive Bayes for probabilistic guesses,
+            and Q-learning to refine strategy over time.
+          </p>
+      
+          <details open>
+            <summary>Q-Learning (q_learning_model.py)</summary>
+            <div class="code-viewer"><pre><code id="q-learning-code">// Loading...</code></pre></div>
+          </details>
+          <details>
+            <summary>Markov Chains (markov_chain.py)</summary>
+            <div class="code-viewer"><pre><code id="markov-code">// Loading...</code></pre></div>
+          </details>
+          <details>
+            <summary>Monte Carlo Tree Search (mcts.py)</summary>
+            <div class="code-viewer"><pre><code id="mcts-code">// Loading...</code></pre></div>
+          </details>
+          <details>
+            <summary>Naive Bayes (naive_bayes.py)</summary>
+            <div class="code-viewer"><pre><code id="naive-code">// Loading...</code></pre></div>
+          </details>
+        </div>
+      
+        <div id="tab3" class="tab-content">
+          <p>
+            These files (for Enhancement 3) manage persistent storage of gameplay metrics.
+            The game engine will use SQLite and a repository pattern to store player performance,
+            AI guesses, word frequencies, and scoring logs across multiple games.
+          </p>
+      
+          <details open>
+            <summary>manager.py</summary>
+            <div class="code-viewer"><pre><code id="db-manager-code">// Loading...</code></pre></div>
+          </details>
+          <details>
+            <summary>base_repository.py</summary>
+            <div class="code-viewer"><pre><code id="repo-base-code">// Loading...</code></pre></div>
+          </details>
+        </div>
+      
+        <h2>📄 Explore My Enhancement Narratives</h2>
+        <p>
+          These narratives document how the artifact evolved through each enhancement:
+          first by improving core design and software engineering practices (Enhancement 1),
+          then by layering in intelligent algorithmic decision-making (Enhancement 2),
+          and finally by enabling AI learning across sessions with persistent data tracking (Enhancement 3).
+        </p>
+      
+        <div class="pdf-viewer">
+          <h3>Enhancement 1: Software Design & Engineering</h3>
+          <iframe src="docs/enhancement1.pdf" width="100%" height="600px"></iframe>
+        </div>
+        <div class="pdf-viewer">
+          <h3>Enhancement 2: Algorithms & AI Prediction</h3>
+          <iframe src="docs/enhancement2.pdf" width="100%" height="600px"></iframe>
+        </div>
+        <div class="pdf-viewer">
+          <h3>Enhancement 3: Database & Persistent Learning</h3>
+          <iframe src="docs/enhancement3.pdf" width="100%" height="600px"></iframe>
+        </div>
+      </div>
+      
 </body>
 </html>
