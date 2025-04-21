@@ -11,7 +11,7 @@
             text-align: center;
             padding: 20px;
         }
-        h1 {
+        h1, h2, h3 {
             color: #333;
         }
         p {
@@ -19,7 +19,7 @@
             color: #555;
         }
         .container {
-            max-width: 800px;
+            max-width: 900px;
             margin: auto;
             background: white;
             padding: 20px;
@@ -52,26 +52,197 @@
             width: 100%;
             height: 100%;
         }
+        .pdf-viewer {
+            margin-top: 30px;
+            padding: 20px;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 0 8px rgba(0,0,0,0.1);
+        }
+        .pdf-nav {
+            margin: 20px 0;
+        }
+        .tabs {
+            display: flex;
+            justify-content: center;
+            margin: 30px 0 10px;
+            flex-wrap: wrap;
+        }
+        .tab-button {
+            background: #007bff;
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            border-radius: 5px 5px 0 0;
+            font-weight: bold;
+        }
+        .tab-button.active {
+            background: #0056b3;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active-tab {
+            display: block;
+        }
+        details summary {
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 20px;
+        }
+        .code-viewer {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            text-align: left;
+            border-radius: 10px;
+            overflow-x: auto;
+            margin-top: 10px;
+            font-family: Consolas, monospace;
+        }
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
     </style>
 </head>
 <body>
-
     <div class="container">
         <h1>Welcome to My AI Word Game Portfolio</h1>
         <p>This portfolio showcases my AI-powered word game, which enhances Q-learning reinforcement learning previously showcased in my Pirate Maze project with Monte Carlo, Markov Chains, and Naïve Bayes models.</p>
 
-        <h2>🔹 About the Project</h2>
-        <p>The AI learns from past player interactions, adapts its word-guessing strategy, and improves over time using persistent storage.</p>
-
-        <h2>⛵ Explore</h2>
-        <a href="https://github.com/MC486/MC486.github.io" class="button" target="_blank">GitHub Repository</a>
-        <a href="https://PLACEHOLDER" class="button" target="_blank">Play the Game (No Link Yet)</a>
-
-        <!-- Embedded YouTube Video -->
-        <div class="video-container">
-            <iframe width="560" height="315" src="https://www.youtube.com/embed/qYYgzhYkr7c?si=eg5-GqqfuhZpbfU1" title="Video Code Review" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+        <h2>📌 Professional Self-Assessment</h2>
+        <div id="professional" class="pdf-viewer">
+            <iframe src="docs/professional-assessment.pdf" width="100%" height="600px"></iframe>
         </div>
+
+        <h2>🎥 Code Review Walkthrough</h2>
+        <div class="video-container">
+            <iframe width="560" height="315" src="https://www.youtube.com/embed/qYYgzhYkr7c?si=eg5-GqqfuhZpbfU1" title="Video Code Review" frameborder="0" allowfullscreen></iframe>
+        </div>
+
+        <h2>📄 Explore My Enhancement Narratives</h2>
+        <div class="pdf-nav">
+            <a class="button" href="#enhancement1">Enhancement 1</a>
+            <a class="button" href="#enhancement2">Enhancement 2</a>
+            <a class="button" href="#enhancement3">Enhancement 3</a>
+        </div>
+
+        <div id="enhancement1" class="pdf-viewer">
+            <h3>Enhancement 1 Narrative</h3>
+            <iframe src="docs/enhancement1.pdf" width="100%" height="600px"></iframe>
+        </div>
+
+        <div id="enhancement2" class="pdf-viewer">
+            <h3>Enhancement 2 Narrative</h3>
+            <iframe src="docs/enhancement2.pdf" width="100%" height="600px"></iframe>
+        </div>
+
+        <div id="enhancement3" class="pdf-viewer">
+            <h3>Enhancement 3 Narrative</h3>
+            <iframe src="docs/enhancement3.pdf" width="100%" height="600px"></iframe>
+        </div>
+
+        <h2>💻 Featured Python Code Samples</h2>
+        <div class="tabs">
+            <button class="tab-button active" onclick="openTab(event, 'tab1')">Software Design</button>
+            <button class="tab-button" onclick="openTab(event, 'tab2')">Algorithms & AI</button>
+            <button class="tab-button" onclick="openTab(event, 'tab3')">Databases</button>
+        </div>
+
+        <div id="tab1" class="tab-content active-tab">
+            <div class="code-viewer">
+                <h3>game_loop.py</h3>
+                <pre><code id="game-loop-code">// Loading...</code></pre>
+            </div>
+            <div class="code-viewer">
+                <h3>game_state.py</h3>
+                <pre><code id="game-state-code">// Loading...</code></pre>
+            </div>
+            <div class="code-viewer">
+                <h3>engine_core.py</h3>
+                <pre><code id="engine-core-code">// Loading...</code></pre>
+            </div>
+            <div class="code-viewer">
+                <h3>input_handler.py</h3>
+                <pre><code id="input-handler-code">// Loading...</code></pre>
+            </div>
+        </div>
+
+        <div id="tab2" class="tab-content">
+            <details open>
+                <summary>Q-Learning (q_learning_model.py)</summary>
+                <div class="code-viewer">
+                    <pre><code id="q-learning-code">// Loading...</code></pre>
+                </div>
+            </details>
+            <details>
+                <summary>Markov Chains (markov_chain.py)</summary>
+                <div class="code-viewer">
+                    <pre><code id="markov-code">// Loading...</code></pre>
+                </div>
+            </details>
+            <details>
+                <summary>Monte Carlo Tree Search (mcts.py)</summary>
+                <div class="code-viewer">
+                    <pre><code id="mcts-code">// Loading...</code></pre>
+                </div>
+            </details>
+            <details>
+                <summary>Naive Bayes (naive_bayes.py)</summary>
+                <div class="code-viewer">
+                    <pre><code id="naive-code">// Loading...</code></pre>
+                </div>
+            </details>
+        </div>
+
+        <div id="tab3" class="tab-content">
+            <div class="code-viewer">
+                <h3>manager.py</h3>
+                <pre><code id="db-manager-code">// Loading...</code></pre>
+            </div>
+            <div class="code-viewer">
+                <h3>base_repository.py</h3>
+                <pre><code id="repo-base-code">// Loading...</code></pre>
+            </div>
+        </div>
+
+        <h2>🔗 Explore</h2>
+        <a href="https://github.com/MC486/MC486.github.io" class="button" target="_blank">GitHub Repository</a>
     </div>
 
+    <script>
+        function openTab(evt, tabId) {
+            const tabContents = document.querySelectorAll(".tab-content");
+            const tabButtons = document.querySelectorAll(".tab-button");
+
+            tabContents.forEach(tab => tab.classList.remove("active-tab"));
+            tabButtons.forEach(btn => btn.classList.remove("active"));
+
+            document.getElementById(tabId).classList.add("active-tab");
+            evt.currentTarget.classList.add("active");
+        }
+
+        async function loadCode(file, elementId) {
+            const res = await fetch(file);
+            const text = await res.text();
+            document.getElementById(elementId).textContent = text;
+        }
+
+        loadCode('code/engine/game_loop.py', 'game-loop-code');
+        loadCode('code/engine/game_state.py', 'game-state-code');
+        loadCode('code/engine/engine_core.py', 'engine-core-code');
+        loadCode('code/engine/input_handler.py', 'input-handler-code');
+
+        loadCode('code/ai/models/q_learning_model.py', 'q-learning-code');
+        loadCode('code/ai/models/markov_chain.py', 'markov-code');
+        loadCode('code/ai/models/mcts.py', 'mcts-code');
+        loadCode('code/ai/models/naive_bayes.py', 'naive-code');
+
+        loadCode('code/database/manager.py', 'db-manager-code');
+        loadCode('code/database/repositories/base_repository.py', 'repo-base-code');
+    </script>
 </body>
 </html>
