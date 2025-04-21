@@ -179,19 +179,37 @@
           and the input handler.
         </p>
         <details open>
-          <p>This GameLoop class runs the core lifecycle of my word strategy game. It initializes all needed components (database, events, input handling), manages the main game loop where players and AI take turns submitting words from available letters, handles special commands like QUIT and BOGGLE, and properly terminates the game with AI learning statistics. The loop continues until the player quits or the game end conditions are met, with appropriate error handling and cleanup throughout the process.</p>
+          <p>This GameLoop class runs the core lifecycle of my word strategy game. It initializes all needed components (database, events, input handling),
+             manages the main game loop where players and AI take turns submitting words from available letters, handles special commands like QUIT and BOGGLE, 
+             and properly terminates the game with AI learning statistics. The loop continues until the player quits or the game end conditions are met, with 
+             appropriate error handling and cleanup throughout the process.</p>
           <summary>game_loop.py</summary>
           <div class="code-viewer"><pre><code id="game-loop-code">// Loading...</code></pre></div>
         </details>
         <details>
+          <p>This GameState class manages the core gameplay mechanics of my word strategy game. It tracks player and AI states (scores, used words), handles 
+            letter pools, validates word submissions, and processes game events through an event system. The class maintains game phases (setup, in-progress, 
+            ended), scores words based on validity, manages the AI's word selection strategy, and provides detailed game statistics at the end. It includes 
+            functionality for redraws (boggle), win condition checking when AI guesses the player's word, and properly cleans up repository data when the game 
+            finishes. Event-driven architecture allows for clean separation of concerns while maintaining all the core game state.</p>
           <summary>game_state.py</summary>
           <div class="code-viewer"><pre><code id="game-state-code">// Loading...</code></pre></div>
         </details>
         <details>
+          <p>This engine_core.py file serves as the entry point for my word strategy game. It handles all initialization tasks needed before the game can begin: 
+            setting up a timestamped logging system to both file and console, creating necessary directories, initializing the database and repository managers, 
+            performing initial data cleanup, and finally launching the main game loop. The structure ensures proper resource management with try/except/finally 
+            blocks for clean error handling and termination, keeping everything organized before handing control over to the GameLoop. The logging configuration 
+            allows for detailed debugging during development while maintaining a record of each game session.</p>
           <summary>engine_core.py</summary>
           <div class="code-viewer"><pre><code id="engine-core-code">// Loading...</code></pre></div>
         </details>
         <details>
+          <p>This InputHandler class manages all player interactions in my word strategy game. It captures and processes player input, validates words against 
+            the available letter pool, and handles special commands like "quit" and "boggle". The class uses a regex pattern to distinguish between regular words 
+            and command inputs (prefixed with /), providing help text, game statistics, and category management functionality. It integrates with the game's event 
+            system to emit appropriate events when players submit words or execute commands, and includes robust error handling for keyboard interrupts and invalid 
+            inputs. The validator ensures words can be formed from available letters while tracking word usage statistics through the repository system.</p>
           <summary>input_handler.py</summary>
           <div class="code-viewer"><pre><code id="input-handler-code">// Loading...</code></pre></div>
         </details>
@@ -203,6 +221,14 @@
           Naive Bayes, and Q-learning models used to predict user moves and adapt the AI over time.
         </p>
         <details open>
+          <p>This QLearningAgent class implements reinforcement learning for my word strategy game's AI. 
+            It learns optimal word selection strategies by mapping game states (available letters and turn number) 
+            to word choices using a Q-table. The agent employs an epsilon-greedy policy to balance exploration and 
+            exploitation - sometimes selecting random words to discover new strategies, otherwise choosing the 
+            highest-valued words from its learned experience. It updates its Q-values based on word scores and 
+            gradually reduces exploration over time as it learns. The agent integrates with the game's event system 
+            to handle word submissions and track game state changes, while maintaining statistics about its learning 
+            process and performance throughout gameplay.</p>
           <summary>Q-Learning (q_learning_model.py)</summary>
           <div class="code-viewer"><pre><code id="q-learning-code">// Loading...</code></pre></div>
         </details>
