@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -233,6 +234,33 @@
           <iframe src="docs/enhancement3.pdf" width="100%" height="600px"></iframe>
         </div>
       </div>
+      <script>
+        async function loadCode(file, elementId) {
+          try {
+            const res = await fetch(file);
+            const text = await res.text();
+            document.getElementById(elementId).textContent = text;
+          } catch (err) {
+            document.getElementById(elementId).textContent = '// Failed to load';
+            console.error(`Error loading ${file}:`, err);
+          }
+        }
+      
+        window.onload = () => {
+          loadCode('engine/game_loop.py', 'game-loop-code');
+          loadCode('engine/game_state.py', 'game-state-code');
+          loadCode('engine/engine_core.py', 'engine-core-code');
+          loadCode('engine/input_handler.py', 'input-handler-code');
+      
+          loadCode('ai/models/q_learning_model.py', 'q-learning-code');
+          loadCode('ai/models/markov_chain.py', 'markov-code');
+          loadCode('ai/models/mcts.py', 'mcts-code');
+          loadCode('ai/models/naive_bayes.py', 'naive-code');
+      
+          loadCode('database/manager.py', 'db-manager-code');
+          loadCode('database/repositories/base_repository.py', 'repo-base-code');
+        };
+      </script>
       
 </body>
 </html>
