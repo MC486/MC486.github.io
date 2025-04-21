@@ -4,9 +4,9 @@ A turn-based word-building game where players compete against AI opponents train
 
 ---
 
-## 🎮 Features
+##  Features
 
-### 🧠 Core Game
+###  Core Game
 - Strategic word creation using shared and private letter pools
 - Dynamic scoring system with:
   - Word length bonuses
@@ -15,7 +15,7 @@ A turn-based word-building game where players compete against AI opponents train
 - Clean CLI interface for fast-paced turn-based play
 - Real-time word validation using Trie-backed dictionary
 
-### 🤖 AI Opponents
+###  AI Opponents
 - Multiple AI models:
   - **Q-Learning** – Reinforcement agent learns long-term reward patterns
   - **Naive Bayes** – Predicts player words using letter-based probabilities
@@ -24,13 +24,13 @@ A turn-based word-building game where players compete against AI opponents train
 - Weighted ensemble prediction with model selection via Q-learning
 - Adaptive behavior based on opponent style
 
-### 💾 Database Integration
+###  Database Integration
 - SQLite-based persistent storage
 - Player profile and scoring history
 - AI model training data persistence
 - Performance analytics and leaderboards
 
-### 🛠 Technical Highlights
+###  Technical Highlights
 - Modular game engine architecture
 - Fully tested game loop, state, input, scoring, and letter generation
 - `config.yaml` for tunable gameplay settings
@@ -39,7 +39,7 @@ A turn-based word-building game where players compete against AI opponents train
 
 ---
 
-## ⚙️ Installation
+##  Installation
 
 ```
 git clone https://github.com/yourusername/MC486.github.io.git
@@ -63,7 +63,7 @@ pip install -r requirements.txt
 
 ---
 
-## 🧩 Usage
+##  Usage
 
 Start the game:
 
@@ -80,7 +80,7 @@ python main.py
 
 ---
 
-## 🗃 Project Structure
+##  Project Structure
 
 ```
 .
@@ -118,7 +118,7 @@ python main.py
 
 ---
 
-## 🧪 Testing
+##  Testing
 
 Run the full test suite:
 
@@ -130,7 +130,7 @@ All modules are tested including game state handling, letter generation logic, s
 
 ---
 
-## 🧬 Configuration
+##  Configuration
 
 Edit `config.yaml` to customize:
 - Letter pool size and distribution
@@ -141,22 +141,22 @@ Edit `config.yaml` to customize:
 
 ---
 
-## 📈 Development Status
+##  Development Status
 
 ### ✅ Enhancement 1: Software Design & Engineering
-- ✅ Modular architecture and class hierarchy
-- ✅ Letter generation logic
-- ✅ Scoring and repeat-word fatigue
-- ✅ Logging, testing, and config system
+-  Modular architecture and class hierarchy
+-  Letter generation logic
+-  Scoring and repeat-word fatigue
+-  Logging, testing, and config system
 
 ### ✅ Enhancement 2: Algorithms & ML Integration
-- ✅ AI model architecture implementation
-- ✅ Markov, MCTS, Q-learning, Naive Bayes modules completed
-- ✅ Prediction pipeline and ensemble model
+-  AI model architecture implementation
+-  Markov, MCTS, Q-learning, Naive Bayes modules completed
+-  Prediction pipeline and ensemble model
 
 ### ✅ Enhancement 3: Database & Persistence
-- ✅ SQLite integration
-- ✅ AI learning from gameplay history
-- ✅ Player analytics and scoreboards
+-  SQLite integration
+-  AI learning from gameplay history
+-  Player analytics and scoreboards
 
 ---
