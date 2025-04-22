@@ -170,6 +170,92 @@
     code {
       font-family: Consolas, monospace;
     }
+
+    /* Project Overview and Technical Stack Styles */
+    .project-overview, .tech-stack {
+      margin: 2rem 0;
+      padding: 2rem;
+      background: var(--background-color);
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .overview-content, .tech-stack-content {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 2rem;
+      margin-top: 1.5rem;
+    }
+
+    .overview-text p, .tech-stack-text p {
+      margin-bottom: 1.5rem;
+      line-height: 1.6;
+    }
+
+    .key-features, .tech-categories {
+      background: rgba(255, 255, 255, 0.05);
+      padding: 1.5rem;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .key-features h3, .tech-categories h3 {
+      margin-bottom: 1rem;
+      color: var(--accent-color);
+      font-size: 1.2rem;
+      font-weight: 600;
+    }
+
+    .key-features ul, .tech-categories ul {
+      list-style-type: none;
+      padding: 0;
+    }
+
+    .key-features li, .tech-categories li {
+      margin-bottom: 0.75rem;
+      padding-left: 1.5rem;
+      position: relative;
+      line-height: 1.5;
+    }
+
+    .key-features li:before, .tech-categories li:before {
+      content: "•";
+      color: var(--accent-color);
+      position: absolute;
+      left: 0;
+    }
+
+    .tech-item {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 0.75rem;
+      background: rgba(255, 255, 255, 0.02);
+      border-radius: 4px;
+      margin-bottom: 0.5rem;
+      transition: background-color 0.2s ease;
+    }
+
+    .tech-item:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .tech-item img {
+      width: 24px;
+      height: 24px;
+      object-fit: contain;
+    }
+
+    .tech-item span {
+      font-size: 0.9rem;
+      color: var(--text-color);
+    }
+
+    @media (max-width: 768px) {
+      .overview-content, .tech-stack-content {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 </head>
 <body>
@@ -248,63 +334,53 @@
         </div>
       </section>
 
-      <h2> Technical Stack</h2>
-      <div class="stack-grid">
-        <!-- Core Technologies -->
-        <div class="stack-category">
-          <h3>Core Technologies</h3>
-          <div class="tech-items">
-            <div class="tech-item">
-              <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg" alt="Python" />
-              <span>Python 3.9+</span>
+      <section class="tech-stack">
+        <h2>Technical Stack</h2>
+        <div class="tech-stack-content">
+          <div class="tech-stack-text">
+            <p>
+              The project leverages a modern tech stack that combines powerful AI frameworks with robust development tools. Python serves as 
+              the primary language, chosen for its excellent support for machine learning and data processing. The system architecture is 
+              built on modular components that communicate through a clean event-driven interface, ensuring maintainability and scalability.
+            </p>
+          </div>
+          <div class="tech-categories">
+            <h3>Core Technologies</h3>
+            <div class="tech-items">
+              <div class="tech-item">
+                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg" alt="Python" />
+                <span>Python 3.9+</span>
+              </div>
+              <div class="tech-item">
+                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/sqlite/sqlite-original.svg" alt="SQLite" />
+                <span>SQLite</span>
+              </div>
             </div>
-            <div class="tech-item">
-              <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/sqlite/sqlite-original.svg" alt="SQLite" />
-              <span>SQLite</span>
+            <h3>AI & Machine Learning</h3>
+            <div class="tech-items">
+              <div class="tech-item">
+                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/numpy/numpy-original.svg" alt="NumPy" />
+                <span>NumPy</span>
+              </div>
+              <div class="tech-item">
+                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/pandas/pandas-original.svg" alt="Pandas" />
+                <span>Pandas</span>
+              </div>
+            </div>
+            <h3>Development Tools</h3>
+            <div class="tech-items">
+              <div class="tech-item">
+                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/git/git-original.svg" alt="Git" />
+                <span>Git</span>
+              </div>
+              <div class="tech-item">
+                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/vscode/vscode-original.svg" alt="VS Code" />
+                <span>VS Code</span>
+              </div>
             </div>
           </div>
         </div>
-
-        <!-- AI & Machine Learning -->
-        <div class="stack-category">
-          <h3>AI & Machine Learning</h3>
-          <div class="tech-items">
-            <div class="tech-item">
-              <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/numpy/numpy-original.svg" alt="NumPy" />
-              <span>NumPy</span>
-            </div>
-            <div class="tech-item">
-              <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/pandas/pandas-original.svg" alt="Pandas" />
-              <span>Pandas</span>
-            </div>
-            <div class="tech-item">
-              <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/tensorflow/tensorflow-original.svg" alt="TensorFlow" />
-              <span>TensorFlow</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Development Tools -->
-        <div class="stack-category">
-          <h3>Development Tools</h3>
-          <div class="tech-items">
-            <div class="tech-item">
-              <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/git/git-original.svg" alt="Git" />
-              <span>Git</span>
-            </div>
-            <div class="tech-item">
-              <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/vscode/vscode-original.svg" alt="VS Code" />
-              <span>VS Code</span>
-            </div>
-            <div class="tech-item">
-              <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/pytest/pytest-original.svg" alt="Pytest" />
-              <span>Pytest</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-
+      </section>
 
       <h2> Featured Python Code Samples</h2>
       <p>
