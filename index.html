@@ -142,6 +142,14 @@
     }
 
     /* Tech Stack Styles */
+    .tech-stack-description {
+      max-width: 800px;
+      margin: 0 auto 2rem;
+      padding: 0 1rem;
+      text-align: center;
+      color: #2c3e50;
+    }
+
     .stack-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -156,18 +164,26 @@
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
 
+    .stack-category h3 {
+      color: #2c3e50;
+      font-size: 1.25rem;
+      margin-bottom: 1rem;
+      font-weight: 600;
+      text-align: center;
+    }
+
     .tech-items {
-      display: flex;
-      flex-wrap: wrap;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
       gap: 1rem;
-      margin-top: 1rem;
     }
 
     .tech-item {
       display: flex;
+      flex-direction: column;
       align-items: center;
       gap: 0.5rem;
-      padding: 0.5rem 1rem;
+      padding: 1rem;
       background: #f8f9fa;
       border-radius: 6px;
       transition: transform 0.2s;
@@ -178,106 +194,24 @@
     }
 
     .tech-item img {
-      width: 24px;
-      height: 24px;
-    }
-
-    .tech-item span {
-      font-size: 0.9rem;
-      color: #333;
-    }
-
-    pre {
-      white-space: pre-wrap;
-      word-wrap: break-word;
-    }
-    code {
-      font-family: Consolas, monospace;
-    }
-
-    /* Project Overview and Technical Stack Styles */
-    .project-overview, .tech-stack {
-      margin: 2rem 0;
-      padding: 2rem;
-      background: var(--background-color);
-      border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
-
-    .overview-content, .tech-stack-content {
-      display: grid;
-      grid-template-columns: 2fr 1fr;
-      gap: 2rem;
-      margin-top: 1.5rem;
-    }
-
-    .overview-text p, .tech-stack-text p {
-      margin-bottom: 1.5rem;
-      line-height: 1.6;
-    }
-
-    .key-features, .tech-categories {
-      background: rgba(255, 255, 255, 0.05);
-      padding: 1.5rem;
-      border-radius: 6px;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    .key-features h3, .tech-categories h3 {
-      margin-bottom: 1rem;
-      color: var(--accent-color);
-      font-size: 1.2rem;
-      font-weight: 600;
-    }
-
-    .key-features ul, .tech-categories ul {
-      list-style-type: none;
-      padding: 0;
-    }
-
-    .key-features li, .tech-categories li {
-      margin-bottom: 0.75rem;
-      padding-left: 1.5rem;
-      position: relative;
-      line-height: 1.5;
-    }
-
-    .key-features li:before, .tech-categories li:before {
-      content: "•";
-      color: var(--accent-color);
-      position: absolute;
-      left: 0;
-    }
-
-    .tech-item {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-      padding: 0.75rem;
-      background: rgba(255, 255, 255, 0.02);
-      border-radius: 4px;
-      margin-bottom: 0.5rem;
-      transition: background-color 0.2s ease;
-    }
-
-    .tech-item:hover {
-      background: rgba(255, 255, 255, 0.05);
-    }
-
-    .tech-item img {
-      width: 24px;
-      height: 24px;
+      width: 32px;
+      height: 32px;
       object-fit: contain;
     }
 
     .tech-item span {
       font-size: 0.9rem;
-      color: var(--text-color);
+      color: #333;
+      text-align: center;
     }
 
     @media (max-width: 768px) {
-      .overview-content, .tech-stack-content {
+      .stack-grid {
         grid-template-columns: 1fr;
+      }
+
+      .tech-items {
+        grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
       }
     }
   </style>
@@ -360,15 +294,13 @@
 
       <section class="tech-stack">
         <h2>Technical Stack</h2>
-        <div class="tech-stack-content">
-          <div class="tech-stack-text">
-            <p>
-              The project leverages a modern tech stack that combines powerful AI frameworks with robust development tools. Python serves as 
-              the primary language, chosen for its excellent support for machine learning and data processing. The system architecture is 
-              built on modular components that communicate through a clean event-driven interface, ensuring maintainability and scalability.
-            </p>
-          </div>
-          <div class="tech-categories">
+        <div class="tech-stack-description">
+          <p>
+            The project leverages a sophisticated tech stack that combines powerful AI frameworks with robust development tools. Python serves as the primary language, chosen for its excellent support for machine learning and data processing. The system architecture is built on modular components that communicate through a clean event-driven interface, ensuring maintainability and scalability. The implementation includes comprehensive testing, logging, and configuration management to ensure reliability and performance.
+          </p>
+        </div>
+        <div class="stack-grid">
+          <div class="stack-category">
             <h3>Core Technologies</h3>
             <div class="tech-items">
               <div class="tech-item">
@@ -379,9 +311,6 @@
                 <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/sqlite/sqlite-original.svg" alt="SQLite" />
                 <span>SQLite</span>
               </div>
-            </div>
-            <h3>AI & Machine Learning</h3>
-            <div class="tech-items">
               <div class="tech-item">
                 <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/numpy/numpy-original.svg" alt="NumPy" />
                 <span>NumPy</span>
@@ -390,7 +319,48 @@
                 <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/pandas/pandas-original.svg" alt="Pandas" />
                 <span>Pandas</span>
               </div>
+              <div class="tech-item">
+                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/yaml/yaml-original.svg" alt="PyYAML" />
+                <span>PyYAML</span>
+              </div>
+              <div class="tech-item">
+                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg" alt="Logging" />
+                <span>Logging</span>
+              </div>
+              <div class="tech-item">
+                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg" alt="Typing" />
+                <span>Typing</span>
+              </div>
             </div>
+          </div>
+
+          <div class="stack-category">
+            <h3>AI & Machine Learning</h3>
+            <div class="tech-items">
+              <div class="tech-item">
+                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg" alt="MCTS" />
+                <span>Monte Carlo Tree Search</span>
+              </div>
+              <div class="tech-item">
+                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg" alt="Q-Learning" />
+                <span>Q-Learning</span>
+              </div>
+              <div class="tech-item">
+                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg" alt="Markov Chains" />
+                <span>Markov Chains</span>
+              </div>
+              <div class="tech-item">
+                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg" alt="Naive Bayes" />
+                <span>Naive Bayes</span>
+              </div>
+              <div class="tech-item">
+                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg" alt="Trie" />
+                <span>Trie Data Structure</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="stack-category">
             <h3>Development Tools</h3>
             <div class="tech-items">
               <div class="tech-item">
@@ -400,6 +370,14 @@
               <div class="tech-item">
                 <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/vscode/vscode-original.svg" alt="VS Code" />
                 <span>VS Code</span>
+              </div>
+              <div class="tech-item">
+                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/pytest/pytest-original.svg" alt="Pytest" />
+                <span>pytest</span>
+              </div>
+              <div class="tech-item">
+                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg" alt="unittest" />
+                <span>unittest</span>
               </div>
             </div>
           </div>
@@ -468,7 +446,7 @@
           </details>
           <details>
             <summary>Naive Bayes (naive_bayes.py)</summary>
-            <p>The NaiveBayes class implements a sophisticated probabilistic classifier that enables the AI to make informed word selections based on learned patterns. It maintains probability distributions for word features and class labels, with efficient calculation of posterior probabilities for classification. The implementation includes smoothing techniques to handle unseen features and support for incremental learning from gameplay experience. This component is essential for creating an AI that can recognize patterns in successful word choices and adapt its strategy accordingly.</p>
+            <p>This NaiveBayesModel implements a probabilistic classifier for predicting player word choices. It analyzes letter frequency patterns and word structure probabilities from historical gameplay to estimate word likelihoods. The model maintains separate probability distributions for word starts, middles, and endings, allowing informed predictions with partial information. It continuously updates its probability tables through the repository system and includes smoothing techniques for rare letter combinations.</p>
             <div class="code-viewer"><pre><code id="naive-code">// Loading...</code></pre></div>
           </details>
         </div>
@@ -481,7 +459,7 @@
           </details>
           <details>
             <summary>base_repository.py</summary>
-            <p>The BaseRepository class implements a sophisticated repository pattern that provides a clean abstraction layer for database operations. It defines common functionality for all repository implementations, including CRUD operations, transaction management, and error handling. The implementation includes support for both synchronous and asynchronous operations, with efficient caching mechanisms to reduce database load. This component is essential for maintaining clean separation of concerns and providing a consistent interface for data access throughout the application.</p>
+            <p>This BaseRepository provides the foundation for all data persistence in the game. It implements a generic repository pattern handling CRUD operations, connection management, and transaction control for SQLite. The class serves as the parent for specialized repositories managing game state, player profiles, and AI model data. It includes automatic connection cleanup and retry logic for robust database operations.</p>
             <div class="code-viewer"><pre><code id="repo-base-code">// Loading...</code></pre></div>
           </details>
         </div>
