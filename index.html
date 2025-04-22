@@ -146,6 +146,7 @@
       background: rgba(255, 255, 255, 0.5);
       border-radius: 8px;
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+      border: 1px solid rgba(0, 0, 0, 0.03);
     }
 
     .tech-stack-grid {
@@ -169,17 +170,10 @@
       box-shadow: 0 4px 8px rgba(0, 0, 0, 0.04);
     }
 
-    .stack-category h3 {
-      color: var(--primary-color);
-      margin-bottom: 1rem;
-      font-size: 1.2rem;
-      font-weight: 600;
-    }
-
     .tech-items {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-      gap: 1rem;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--space-md);
     }
 
     .tech-item {
@@ -187,7 +181,7 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 1rem;
+      padding: var(--space-md);
       background: rgba(255, 255, 255, 0.05);
       border-radius: 8px;
       transition: all 0.3s ease;
@@ -199,13 +193,13 @@
     }
 
     .tech-item i {
-      font-size: 1.5rem;
-      margin-bottom: 0.5rem;
+      font-size: 1.2rem;
+      margin-bottom: var(--space-sm);
       color: var(--primary-color);
     }
 
     .tech-item span {
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       color: var(--text-color);
     }
 
@@ -352,6 +346,10 @@
         --space-lg: 1rem;
       }
 
+      .tech-stack-grid {
+        grid-template-columns: 1fr;
+      }
+
       .tech-items {
         grid-template-columns: repeat(2, 1fr);
       }
@@ -371,10 +369,6 @@
       section {
         padding: var(--space-lg);
         margin: var(--space-lg) 0;
-      }
-      
-      .tech-stack-grid {
-        grid-template-columns: 1fr;
       }
     }
 
