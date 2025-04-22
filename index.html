@@ -137,120 +137,85 @@
       line-height: 1.75;
     }
 
-    .stack-grid {
-      display: flex;
-      flex-direction: column;
-      gap: var(--space-xl);
-      padding: var(--space-md);
-      max-width: 800px;
-      margin: 0 auto;
+    .tech-stack-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 2rem;
+      margin-top: 2rem;
     }
 
     .stack-category {
-      background: var(--surface);
-      padding: var(--space-lg);
-      border-radius: var(--radius-lg);
-      box-shadow: var(--shadow-md);
-      backdrop-filter: blur(8px);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      transition: transform var(--transition-normal), box-shadow var(--transition-normal);
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
     }
 
     .stack-category:hover {
-      transform: translateY(-4px);
-      box-shadow: var(--shadow-lg);
+      transform: translateY(-5px);
+      box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
     }
 
     .stack-category h3 {
-      color: var(--text-primary);
-      font-size: 1.25rem;
-      margin-bottom: var(--space-lg);
+      color: var(--primary-color);
+      margin-bottom: 1rem;
+      font-size: 1.2rem;
       font-weight: 600;
-      text-align: center;
-      position: relative;
-      padding-bottom: var(--space-sm);
-    }
-
-    .stack-category h3::after {
-      content: '';
-      position: absolute;
-      bottom: 0;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 40px;
-      height: 2px;
-      background: linear-gradient(90deg, var(--primary), var(--accent));
     }
 
     .tech-items {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: var(--space-md);
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 1rem;
     }
 
     .tech-item {
+      position: relative;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: var(--space-sm);
-      padding: var(--space-md);
-      background: var(--background);
-      border-radius: var(--radius-md);
-      transition: all var(--transition-normal);
-      position: relative;
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 1rem;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      transition: all 0.3s ease;
     }
 
     .tech-item:hover {
-      transform: translateY(-2px) scale(1.02);
-      box-shadow: var(--shadow-md);
-      background: var(--surface);
+      background: rgba(255, 255, 255, 0.1);
+      transform: translateY(-2px);
     }
 
-    .tech-item img {
-      width: 32px;
-      height: 32px;
-      object-fit: contain;
-      transition: transform var(--transition-normal);
-    }
-
-    .tech-item:hover img {
-      transform: scale(1.1);
+    .tech-item i {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+      color: var(--primary-color);
     }
 
     .tech-item span {
       font-size: 0.9rem;
-      color: var(--text-secondary);
-      text-align: center;
-      transition: color var(--transition-normal);
+      color: var(--text-color);
     }
 
-    .tech-item:hover span {
-      color: var(--text-primary);
-    }
-
-    .tech-item .tooltip {
-      visibility: hidden;
+    .tooltip {
       position: absolute;
-      z-index: 1;
-      bottom: 125%;
+      bottom: 100%;
       left: 50%;
       transform: translateX(-50%);
-      background-color: var(--surface);
-      color: var(--text-primary);
-      text-align: center;
-      padding: var(--space-sm);
-      border-radius: var(--radius-sm);
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 0.5rem;
+      border-radius: 4px;
       font-size: 0.8rem;
-      width: max-content;
-      max-width: 200px;
+      white-space: nowrap;
       opacity: 0;
-      transition: all var(--transition-normal);
-      box-shadow: var(--shadow-md);
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      visibility: hidden;
+      transition: all 0.3s ease;
+      z-index: 10;
     }
 
     .tech-item:hover .tooltip {
+      opacity: 1;
       visibility: visible;
       opacity: 1;
       transform: translateX(-50%) translateY(-4px);
