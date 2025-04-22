@@ -9,14 +9,14 @@
   <style>
     :root {
       /* Color System */
-      --primary: #2563eb;
-      --primary-dark: #1d4ed8;
-      --secondary: #64748b;
-      --accent: #3b82f6;
-      --background: #f8fafc;
+      --primary: #e11d48;
+      --primary-dark: #be123c;
+      --secondary: #9f1239;
+      --accent: #fb7185;
+      --background: #fff1f2;
       --surface: #ffffff;
-      --text-primary: #1e293b;
-      --text-secondary: #64748b;
+      --text-primary: #1f2937;
+      --text-secondary: #4b5563;
       
       /* Spacing System */
       --space-xs: 0.25rem;
@@ -46,14 +46,14 @@
 
     @media (prefers-color-scheme: dark) {
       :root {
-        --primary: #3b82f6;
-        --primary-dark: #2563eb;
-        --secondary: #94a3b8;
-        --accent: #60a5fa;
-        --background: #0f172a;
-        --surface: #1e293b;
-        --text-primary: #f8fafc;
-        --text-secondary: #cbd5e1;
+        --primary: #fb7185;
+        --primary-dark: #f43f5e;
+        --secondary: #be123c;
+        --accent: #e11d48;
+        --background: #1f2937;
+        --surface: #374151;
+        --text-primary: #f9fafb;
+        --text-secondary: #d1d5db;
       }
     }
 
@@ -76,6 +76,7 @@
       background-color: var(--background);
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
+      text-align: center;
     }
 
     /* Typography */
@@ -87,11 +88,14 @@
     }
 
     h1 {
-      font-size: 2.5rem;
+      font-size: 3.5rem;
+      font-weight: 800;
+      letter-spacing: -0.025em;
       background: linear-gradient(135deg, var(--primary), var(--accent));
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       text-shadow: var(--shadow-sm);
+      margin-bottom: var(--space-lg);
     }
 
     h2 {
@@ -207,12 +211,11 @@
       width: 32px;
       height: 32px;
       object-fit: contain;
-      filter: grayscale(100%);
-      transition: filter var(--transition-normal);
+      transition: transform var(--transition-normal);
     }
 
     .tech-item:hover img {
-      filter: grayscale(0%);
+      transform: scale(1.1);
     }
 
     .tech-item span {
@@ -404,6 +407,31 @@
         scroll-behavior: auto !important;
       }
     }
+
+    /* Button Styles */
+    .button {
+      display: inline-block;
+      background: var(--primary);
+      color: white;
+      padding: var(--space-sm) var(--space-lg);
+      margin: var(--space-md);
+      text-decoration: none;
+      border-radius: var(--radius-md);
+      font-weight: 500;
+      transition: all var(--transition-normal);
+      border: none;
+      cursor: pointer;
+    }
+
+    .button:hover {
+      background: var(--primary-dark);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .button:active {
+      transform: translateY(0);
+    }
   </style>
 </head>
 <body>
@@ -416,6 +444,9 @@
 
   <main>
     <div class="container">
+      <h1>Wordle AI: Mastering Language Through Machine Learning</h1>
+      <p>A sophisticated implementation of Wordle with advanced AI capabilities, featuring Monte Carlo Tree Search and Q-Learning algorithms for optimal gameplay.</p>
+      <a href="https://github.com/MC486/Wordle-AI" class="button" target="_blank">View on GitHub</a>
       <h2>👤 About Me</h2>
       <p>
         My name is <strong>Michael Crevier</strong>. I'm a computer science graduate with a focus on
