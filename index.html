@@ -152,55 +152,42 @@
     .tech-stack-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
-      gap: var(--space-lg);
-      margin-top: var(--space-lg);
+      gap: 1.5rem;
+      margin-top: 2rem;
     }
 
     .stack-category {
-      background: var(--card-bg);
-      border-radius: 12px;
-      padding: var(--space-lg);
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
-      border: 1px solid rgba(0, 0, 0, 0.03);
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
-    }
-
-    .stack-category:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.04);
+      background: var(--surface-2);
+      border-radius: 8px;
+      padding: 1rem;
+      box-shadow: var(--shadow-2);
     }
 
     .tech-items {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: var(--space-md);
+      gap: 0.5rem;
+      margin-top: 0.5rem;
     }
 
     .tech-item {
-      position: relative;
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: var(--space-md);
-      background: rgba(255, 255, 255, 0.05);
-      border-radius: 8px;
-      transition: all 0.3s ease;
-    }
-
-    .tech-item:hover {
-      background: rgba(255, 255, 255, 0.1);
-      transform: translateY(-2px);
+      padding: 0.5rem;
+      text-align: center;
+      font-size: 0.20rem;
     }
 
     .tech-item i {
-      font-size: 1.2rem;
-      margin-bottom: var(--space-sm);
-      color: var(--primary-color);
+      font-size: 0.3rem;
+      margin-bottom: 0.2rem;
+      color: var(--text-2);
     }
 
     .tech-item span {
-      font-size: 0.85rem;
-      color: var(--text-color);
+      font-size: 0.20rem;
+      color: var(--text-2);
     }
 
     .tooltip {
@@ -351,7 +338,7 @@
       }
 
       .tech-items {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(3, 1fr);
       }
 
       h1 {
@@ -374,7 +361,7 @@
 
     @media (max-width: 480px) {
       .tech-items {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, 1fr);
       }
     }
 
@@ -518,7 +505,7 @@
         justifications, and the broader vision for reinforcement learning beyond simple spatial navigation.
       </p>
       <div class="video-container">
-        <iframe width="560" height="315" src="https://www.youtube.com/embed/qYYgzhYkr7c?si=eg5-GqqfuhZpbfU1" title="Video Code Review" frameborder="0" allowfullscreen></iframe>
+        <iframe width="1120" height="630" src="https://www.youtube.com/embed/qYYgzhYkr7c?si=eg5-GqqfuhZpbfU1" title="Video Code Review" frameborder="0" allowfullscreen></iframe>
       </div>
       <section class="tech-stack">
         <h2>Technical Stack</h2>
