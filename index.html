@@ -430,26 +430,22 @@
         <div id="tab1" class="tab-content active-tab" role="tabpanel" aria-labelledby="tab1-tab">
           <details open>
             <summary>game_loop.py</summary>
-            <p>This GameLoop class runs the core lifecycle of my word strategy game. It initializes all needed components (database, events, input handling),
-               manages the main game loop where players and AI take turns submitting words from available letters, handles special commands like QUIT and BOGGLE, 
-               and properly terminates the game with AI learning statistics.</p>
+            <p>This GameLoop class orchestrates the core lifecycle of my word strategy game, implementing a robust event-driven architecture that ensures clean separation of concerns. It initializes critical components including the database manager, event system, and input handler, then manages the main game loop where players and AI take turns submitting words from available letters. The implementation handles special commands like QUIT and BOGGLE with proper error handling and cleanup, while maintaining game statistics and AI learning metrics throughout the session. This central component ensures reliable game flow and proper resource management, serving as the backbone of the entire application.</p>
             <div class="code-viewer"><pre><code id="game-loop-code">// Loading...</code></pre></div>
           </details>
           <details>
             <summary>game_state.py</summary>
-            <p>This GameState class manages the core gameplay mechanics of my word strategy game. It tracks player and AI states (scores, used words), handles 
-              letter pools, validates word submissions, and processes game events through an event system.</p>
+            <p>The GameState class forms the heart of the game's logic, implementing a sophisticated state management system that tracks player and AI states, including scores, used words, and letter pools. It employs an efficient word validation system that checks submissions against available letters while maintaining a clean event-driven interface for state updates. The implementation includes comprehensive scoring logic, phase management (setup, in-progress, ended), and detailed game statistics tracking, all while ensuring thread safety and data consistency. This class is crucial for maintaining game integrity and providing a reliable foundation for both player interactions and AI decision-making.</p>
             <div class="code-viewer"><pre><code id="game-state-code">// Loading...</code></pre></div>
           </details>
           <details>
             <summary>engine_core.py</summary>
-            <p>This engine_core.py file serves as the entry point for my word strategy game. It handles all initialization tasks needed before the game can begin.</p>
+            <p>This engine_core.py file serves as the robust entry point for the word strategy game, implementing a comprehensive initialization system that ensures all components are properly configured before gameplay begins. It sets up a sophisticated logging system with both file and console outputs, creates necessary directories, initializes the database and repository managers, and performs initial data cleanup. The implementation includes robust error handling with try/except/finally blocks for clean resource management, while maintaining detailed logging for debugging and session tracking. This foundation ensures reliable game startup and proper resource allocation throughout the application lifecycle.</p>
             <div class="code-viewer"><pre><code id="engine-core-code">// Loading...</code></pre></div>
           </details>
           <details>
             <summary>input_handler.py</summary>
-            <p>This InputHandler class manages all player interactions in my word strategy game. It captures and processes player input, validates words against 
-              the available letter pool, and handles special commands.</p>
+            <p>The InputHandler class implements a sophisticated input processing system that manages all player interactions with the game. It employs regex patterns to distinguish between regular words and command inputs, while maintaining a clean interface for word validation against the available letter pool. The implementation includes comprehensive command handling for features like help text, game statistics, and category management, all while integrating seamlessly with the game's event system. This component is crucial for providing a responsive and intuitive user interface while ensuring proper input validation and error handling.</p>
             <div class="code-viewer"><pre><code id="input-handler-code">// Loading...</code></pre></div>
           </details>
         </div>
@@ -457,22 +453,22 @@
         <div id="tab2" class="tab-content" role="tabpanel" aria-labelledby="tab2-tab">
           <details open>
             <summary>Q-Learning (q_learning_model.py)</summary>
-            <p>This QLearningAgent class implements reinforcement learning for my word strategy game's AI.</p>
+            <p>This QLearningAgent class implements a sophisticated reinforcement learning system that enables the AI to learn optimal word selection strategies through gameplay experience. It maintains a Q-table mapping game states (available letters and turn number) to word choices, employing an epsilon-greedy policy to balance exploration and exploitation. The implementation includes dynamic learning rate adjustment and reward shaping based on word scores, while integrating with the game's event system to track state changes and update Q-values. This component is crucial for creating an AI opponent that improves its strategy over time, providing increasingly challenging gameplay.</p>
             <div class="code-viewer"><pre><code id="q-learning-code">// Loading...</code></pre></div>
           </details>
           <details>
             <summary>Markov Chains (markov_chain.py)</summary>
-            <p>This MarkovChain class implements a probabilistic language model for my word strategy game's AI.</p>
+            <p>The MarkovChain class implements a sophisticated probabilistic language model that enables the AI to generate contextually appropriate words based on learned patterns. It builds and maintains a transition matrix mapping letter sequences to their likely next characters, with support for configurable order parameters to control context depth. The implementation includes efficient word generation algorithms that respect available letter constraints while maintaining both start probabilities and transition probabilities. This component is essential for creating natural-sounding word choices and adapting to different game scenarios.</p>
             <div class="code-viewer"><pre><code id="markov-code">// Loading...</code></pre></div>
           </details>
           <details>
             <summary>Monte Carlo Tree Search (mcts.py)</summary>
-            <p>This MCTS class implements Monte Carlo Tree Search for selecting optimal words in my strategy game.</p>
+            <p>This MCTS class implements a sophisticated tree search algorithm that enables the AI to make strategic word selections by exploring possible game states. It employs the UCB1 formula to balance exploration and exploitation, with nodes representing partial words and edges representing available letters. The implementation includes efficient tree traversal, node expansion, and reward propagation mechanisms, while maintaining statistics about node visits and win values. This component is crucial for creating an AI that can think ahead and make strategic decisions based on potential outcomes.</p>
             <div class="code-viewer"><pre><code id="mcts-code">// Loading...</code></pre></div>
           </details>
           <details>
             <summary>Naive Bayes (naive_bayes.py)</summary>
-            <p>This NaiveBayes class implements a probabilistic classifier for word selection in my strategy game.</p>
+            <p>The NaiveBayes class implements a sophisticated probabilistic classifier that enables the AI to make informed word selections based on learned patterns. It maintains probability distributions for word features and class labels, with efficient calculation of posterior probabilities for classification. The implementation includes smoothing techniques to handle unseen features and support for incremental learning from gameplay experience. This component is essential for creating an AI that can recognize patterns in successful word choices and adapt its strategy accordingly.</p>
             <div class="code-viewer"><pre><code id="naive-code">// Loading...</code></pre></div>
           </details>
         </div>
@@ -480,12 +476,12 @@
         <div id="tab3" class="tab-content" role="tabpanel" aria-labelledby="tab3-tab">
           <details open>
             <summary>manager.py</summary>
-            <p>This DatabaseManager class handles all database operations and connection management.</p>
+            <p>This DatabaseManager class implements a robust database management system that ensures reliable data persistence and retrieval throughout the application. It employs connection pooling and transaction management to handle concurrent database operations efficiently, while maintaining clean separation between database operations and business logic. The implementation includes comprehensive error handling and recovery mechanisms, with support for both synchronous and asynchronous operations. This component is crucial for maintaining data consistency and providing reliable access to game state, player statistics, and AI model parameters.</p>
             <div class="code-viewer"><pre><code id="db-manager-code">// Loading...</code></pre></div>
           </details>
           <details>
             <summary>base_repository.py</summary>
-            <p>This BaseRepository class provides common functionality for all repository implementations.</p>
+            <p>The BaseRepository class implements a sophisticated repository pattern that provides a clean abstraction layer for database operations. It defines common functionality for all repository implementations, including CRUD operations, transaction management, and error handling. The implementation includes support for both synchronous and asynchronous operations, with efficient caching mechanisms to reduce database load. This component is essential for maintaining clean separation of concerns and providing a consistent interface for data access throughout the application.</p>
             <div class="code-viewer"><pre><code id="repo-base-code">// Loading...</code></pre></div>
           </details>
         </div>
@@ -493,27 +489,27 @@
         <div id="tab4" class="tab-content" role="tabpanel" aria-labelledby="tab4-tab">
           <details open>
             <summary>Game Loop Testing (test_game_loop.py)</summary>
-            <p>This test suite validates the core game loop functionality, including turn management, event handling, and game termination.</p>
+            <p>This comprehensive test suite validates the core game loop functionality, implementing sophisticated test cases that verify turn management, event handling, and game termination. It employs pytest fixtures to set up complex game states and mock objects to isolate components for testing. The implementation includes tests for edge cases like invalid inputs, game termination conditions, and error recovery, with detailed assertions to ensure proper game flow. This component is crucial for maintaining system reliability and ensuring the game loop behaves correctly under various conditions.</p>
             <div class="code-viewer"><pre><code id="test-game-loop-code">// Loading...</code></pre></div>
           </details>
           <details>
             <summary>Monte Carlo Tree Search (test_mcts.py)</summary>
-            <p>These tests verify my Monte Carlo Tree Search implementation's decision-making process.</p>
+            <p>These sophisticated tests verify the Monte Carlo Tree Search implementation's decision-making process, employing property-based testing to validate the algorithm's behavior across various game states. The implementation includes tests for tree search strategies, node selection and expansion, and reward propagation, with detailed assertions to ensure proper balance between exploration and exploitation. This component is essential for maintaining AI performance and ensuring the MCTS algorithm makes optimal decisions in different game scenarios.</p>
             <div class="code-viewer"><pre><code id="test-mcts-code">// Loading...</code></pre></div>
           </details>
           <details>
             <summary>Repository Testing (test_naive_bayes_repository.py)</summary>
-            <p>This test suite ensures proper data persistence and retrieval for my Naive Bayes model.</p>
+            <p>This comprehensive test suite ensures proper data persistence and retrieval for the Naive Bayes model, implementing sophisticated test cases that verify database operations and transaction handling. It employs pytest fixtures to set up test databases and mock objects to isolate repository components, with detailed assertions to ensure data consistency. The implementation includes tests for edge cases like concurrent access and error recovery, making it crucial for maintaining reliable model state persistence across game sessions.</p>
             <div class="code-viewer"><pre><code id="test-repo-code">// Loading...</code></pre></div>
           </details>
           <details>
             <summary>Game State Testing (test_game_state.py)</summary>
-            <p>These tests validate my game state management system, including score tracking, word validation, and turn management.</p>
+            <p>These sophisticated tests validate the game state management system, implementing comprehensive test cases that verify score tracking, word validation, and turn management. The implementation employs property-based testing to validate state transitions across various game scenarios, with detailed assertions to ensure proper event handling and data consistency. This component is crucial for maintaining game integrity and ensuring the state management system behaves correctly under different conditions.</p>
             <div class="code-viewer"><pre><code id="test-state-code">// Loading...</code></pre></div>
           </details>
           <details>
             <summary>Input Handler Testing (test_input_handler.py)</summary>
-            <p>This test suite validates my input handling system, ensuring proper processing of player commands and word submissions.</p>
+            <p>This comprehensive test suite validates the input handling system, implementing sophisticated test cases that verify command parsing, word validation, and special command handling. It employs pytest fixtures to set up test scenarios and mock objects to isolate input components, with detailed assertions to ensure proper processing of various input formats. The implementation includes tests for edge cases and error conditions, making it essential for maintaining a robust user interface and reliable game interaction layer.</p>
             <div class="code-viewer"><pre><code id="test-input-code">// Loading...</code></pre></div>
           </details>
         </div>
