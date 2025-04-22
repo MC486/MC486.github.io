@@ -7,228 +7,277 @@
   <title>AI Word Strategy Game - Portfolio</title>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
   <style>
-    :root {
-      --primary-color: #2d3436;
-      --secondary-color: #0984e3;
-      --accent-color: #00b894;
-      --text-color: #dfe6e9;
-      --background-color: #1a1a1a;
-      --card-background: rgba(255, 255, 255, 0.05);
-      --section-spacing: 4rem;
-      --content-width: 1200px;
-    }
-
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    html {
-      scroll-behavior: smooth;
-    }
-
     body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-      line-height: 1.6;
-      color: var(--text-color);
-      background-color: var(--background-color);
-      overflow-x: hidden;
+      font-family: Calibri, sans-serif;
+      background-color: #f4f4f4;
+      text-align: center;
+      padding: 20px;
+    }
+    section, .pdf-viewer, .tabs, .video-container {
+      margin-top: 50px;
+      padding-top: 20px;
+      border-top: 2px solid #ddd;
     }
 
-    .container {
-      max-width: var(--content-width);
-      margin: 0 auto;
-      padding: 0 2rem;
-    }
-
-    section {
-      min-height: 100vh;
-      padding: var(--section-spacing) 0;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      position: relative;
-    }
-
-    section::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 1px;
-      background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.1), transparent);
+    section h2 {
+      margin-top: 0;
     }
 
     h1, h2, h3 {
-      font-weight: 700;
-      line-height: 1.2;
-      margin-bottom: 1.5rem;
+      color: #333;
     }
-
-    h1 {
-      font-size: 3.5rem;
-      background: linear-gradient(135deg, var(--secondary-color), var(--accent-color));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-
-    h2 {
-      font-size: 2.5rem;
-      color: var(--secondary-color);
-    }
-
-    h3 {
-      font-size: 1.75rem;
-      color: var(--accent-color);
-    }
-
     p {
-      margin-bottom: 1.5rem;
-      font-size: 1.1rem;
+      font-size: 18px;
+      color: #555;
     }
-
-    .btn {
+    .container {
+      max-width: 900px;
+      margin: auto;
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+    .button {
       display: inline-block;
-      padding: 1rem 2rem;
-      background: linear-gradient(135deg, var(--secondary-color), var(--accent-color));
+      background: #007bff;
       color: white;
+      padding: 10px 20px;
+      margin: 10px;
       text-decoration: none;
-      border-radius: 50px;
-      font-weight: 600;
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
-      border: none;
+      border-radius: 5px;
+    }
+    .button:hover {
+      background: #0056b3;
+    }
+    .video-container {
+      margin-top: 30px;
+      position: relative;
+      padding-bottom: 56.25%;
+      height: 0;
+      overflow: hidden;
+    }
+    .video-container iframe {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+    .pdf-viewer {
+      margin-top: 30px;
+      padding: 20px;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 0 8px rgba(0,0,0,0.1);
+    }
+    .tabs {
+      display: flex;
+      justify-content: center;
+      margin: 30px 0 10px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .tab-button {
+      background: #f8f9fa;
+      border: 1px solid #e9ecef;
+      color: #2c3e50;
+      padding: 10px 20px;
       cursor: pointer;
+      border-radius: 6px;
+      font-weight: 500;
+      transition: all 0.2s ease;
     }
-
-    .btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    .tab-button:hover {
+      background: #e9ecef;
     }
-
-    .btn-secondary {
-      background: transparent;
-      border: 2px solid var(--secondary-color);
-      color: var(--secondary-color);
-    }
-
-    .btn-secondary:hover {
-      background: var(--secondary-color);
+    .tab-button.active {
+      background: #2c3e50;
       color: white;
+      border-color: #2c3e50;
+    }
+    .tab-content {
+      display: none;
+      margin-top: 20px;
+    }
+    .tab-content.active-tab {
+      display: block;
+    }
+    details {
+      margin-bottom: 15px;
+      background: white;
+      border-radius: 6px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    details summary {
+      cursor: pointer;
+      padding: 15px;
+      font-weight: 500;
+      color: #2c3e50;
+      border-bottom: 1px solid #e9ecef;
+    }
+    details[open] summary {
+      border-bottom: none;
+    }
+    details p {
+      padding: 15px;
+      margin: 0;
+      color: #555;
+      font-size: 0.95rem;
+      line-height: 1.6;
+      border-bottom: 1px solid #e9ecef;
+    }
+    .code-viewer {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 0 0 6px 6px;
+      overflow-x: auto;
+    }
+    .code-viewer pre {
+      margin: 0;
+      font-family: 'Consolas', monospace;
+      font-size: 0.9rem;
+      line-height: 1.5;
+      color: #333;
     }
 
-    .tech-stack {
-      background: var(--card-background);
-      padding: 2rem;
-      border-radius: 12px;
-      margin-top: 2rem;
+    /* Tech Stack Styles */
+    .stack-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2rem;
+      padding: 1rem;
     }
 
-    .tech-category {
-      margin-bottom: 2rem;
-    }
-
-    .tech-category:last-child {
-      margin-bottom: 0;
+    .stack-category {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
 
     .tech-items {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 1.5rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
       margin-top: 1rem;
     }
 
     .tech-item {
-      background: rgba(255, 255, 255, 0.03);
-      padding: 1.5rem;
-      border-radius: 8px;
       display: flex;
       align-items: center;
-      gap: 1rem;
-      transition: transform 0.3s ease;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      background: #f8f9fa;
+      border-radius: 6px;
+      transition: transform 0.2s;
     }
 
     .tech-item:hover {
-      transform: translateY(-3px);
+      transform: translateY(-2px);
     }
 
     .tech-item img {
-      width: 40px;
-      height: 40px;
+      width: 24px;
+      height: 24px;
+    }
+
+    .tech-item span {
+      font-size: 0.9rem;
+      color: #333;
+    }
+
+    pre {
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    code {
+      font-family: Consolas, monospace;
+    }
+
+    /* Project Overview and Technical Stack Styles */
+    .project-overview, .tech-stack {
+      margin: 2rem 0;
+      padding: 2rem;
+      background: var(--background-color);
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .overview-content, .tech-stack-content {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 2rem;
+      margin-top: 1.5rem;
+    }
+
+    .overview-text p, .tech-stack-text p {
+      margin-bottom: 1.5rem;
+      line-height: 1.6;
+    }
+
+    .key-features, .tech-categories {
+      background: rgba(255, 255, 255, 0.05);
+      padding: 1.5rem;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .key-features h3, .tech-categories h3 {
+      margin-bottom: 1rem;
+      color: var(--accent-color);
+      font-size: 1.2rem;
+      font-weight: 600;
+    }
+
+    .key-features ul, .tech-categories ul {
+      list-style-type: none;
+      padding: 0;
+    }
+
+    .key-features li, .tech-categories li {
+      margin-bottom: 0.75rem;
+      padding-left: 1.5rem;
+      position: relative;
+      line-height: 1.5;
+    }
+
+    .key-features li:before, .tech-categories li:before {
+      content: "•";
+      color: var(--accent-color);
+      position: absolute;
+      left: 0;
+    }
+
+    .tech-item {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 0.75rem;
+      background: rgba(255, 255, 255, 0.02);
+      border-radius: 4px;
+      margin-bottom: 0.5rem;
+      transition: background-color 0.2s ease;
+    }
+
+    .tech-item:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .tech-item img {
+      width: 24px;
+      height: 24px;
       object-fit: contain;
     }
 
     .tech-item span {
-      font-size: 1rem;
-      color: var(--text-color);
-    }
-
-    .code-block {
-      background: rgba(0, 0, 0, 0.3);
-      padding: 1.5rem;
-      border-radius: 8px;
-      overflow-x: auto;
-      margin: 2rem 0;
-    }
-
-    pre {
-      margin: 0;
-      font-family: 'Fira Code', monospace;
       font-size: 0.9rem;
-      line-height: 1.5;
-    }
-
-    code {
-      font-family: 'Fira Code', monospace;
-    }
-
-    .nav-links {
-      position: fixed;
-      top: 2rem;
-      right: 2rem;
-      display: flex;
-      gap: 1.5rem;
-      z-index: 100;
-    }
-
-    .nav-links a {
       color: var(--text-color);
-      text-decoration: none;
-      font-weight: 500;
-      transition: color 0.3s ease;
-    }
-
-    .nav-links a:hover {
-      color: var(--secondary-color);
     }
 
     @media (max-width: 768px) {
-      h1 {
-        font-size: 2.5rem;
-      }
-
-      h2 {
-        font-size: 2rem;
-      }
-
-      h3 {
-        font-size: 1.5rem;
-      }
-
-      .container {
-        padding: 0 1.5rem;
-      }
-
-      .tech-items {
+      .overview-content, .tech-stack-content {
         grid-template-columns: 1fr;
-      }
-
-      .nav-links {
-        position: static;
-        margin-top: 2rem;
-        justify-content: center;
       }
     }
   </style>
@@ -357,190 +406,118 @@
         </div>
       </section>
 
-      <h2> Featured Python Code Samples</h2>
-      <p>
-        Below are selected code excerpts demonstrating my implementation in software design, AI algorithms,
-        and database management. Expand each section to explore the source files.
-      </p>
-      <div class="tabs" role="tablist">
-        <button role="tab" aria-selected="true" aria-controls="tab1" id="tab1-tab" class="tab-button active" onclick="openTab(event, 'tab1')">
-          Software Design
-        </button>
-        <button role="tab" aria-selected="false" aria-controls="tab2" id="tab2-tab" class="tab-button" onclick="openTab(event, 'tab2')">
-          Algorithms & AI
-        </button>
-        <button role="tab" aria-selected="false" aria-controls="tab3" id="tab3-tab" class="tab-button" onclick="openTab(event, 'tab3')">
-          Databases
-        </button>
-        <button role="tab" aria-selected="false" aria-controls="tab4" id="tab4-tab" class="tab-button" onclick="openTab(event, 'tab4')">
-          Testing Suite
-        </button>
-      </div>
-
-      <div id="tab1" class="tab-content active-tab" role="tabpanel" aria-labelledby="tab1-tab">
+      <section>
+        <h2>Featured Python Code Samples</h2>
         <p>
-          My game engine implementation features a robust, event-driven architecture that manages the core gameplay mechanics. The system handles 
-          turn-based gameplay, word validation, scoring, and player interactions through a clean separation of concerns. I've implemented efficient 
-          data structures for managing game state, with optimizations for handling dynamic letter pools and word validation. The engine includes 
-          comprehensive error handling and logging to ensure reliable operation, while maintaining a flexible architecture that supports both 
-          human players and AI components. The implementation prioritizes clean code organization and maintainability, with clear interfaces 
-          between components and thorough documentation of the game's core mechanics.
+          Below are selected code excerpts demonstrating my implementation in software design, AI algorithms,
+          and database management. Expand each section to explore the source files.
         </p>
-        <details open>
-          <p>This GameLoop class runs the core lifecycle of my word strategy game. It initializes all needed components (database, events, input handling),
-             manages the main game loop where players and AI take turns submitting words from available letters, handles special commands like QUIT and BOGGLE, 
-             and properly terminates the game with AI learning statistics. The loop continues until the player quits or the game end conditions are met, with 
-             appropriate error handling and cleanup throughout the process.</p>
-          <summary>game_loop.py</summary>
-          <div class="code-viewer"><pre><code id="game-loop-code">// Loading...</code></pre></div>
-        </details>
-        <details>
-          <p>This GameState class manages the core gameplay mechanics of my word strategy game. It tracks player and AI states (scores, used words), handles 
-            letter pools, validates word submissions, and processes game events through an event system. The class maintains game phases (setup, in-progress, 
-            ended), scores words based on validity, manages the AI's word selection strategy, and provides detailed game statistics at the end. It includes 
-            functionality for redraws (boggle), win condition checking when AI guesses the player's word, and properly cleans up repository data when the game 
-            finishes. Event-driven architecture allows for clean separation of concerns while maintaining all the core game state.</p>
-          <summary>game_state.py</summary>
-          <div class="code-viewer"><pre><code id="game-state-code">// Loading...</code></pre></div>
-        </details>
-        <details>
-          <p>This engine_core.py file serves as the entry point for my word strategy game. It handles all initialization tasks needed before the game can begin: 
-            setting up a timestamped logging system to both file and console, creating necessary directories, initializing the database and repository managers, 
-            performing initial data cleanup, and finally launching the main game loop. The structure ensures proper resource management with try/except/finally 
-            blocks for clean error handling and termination, keeping everything organized before handing control over to the GameLoop. The logging configuration 
-            allows for detailed debugging during development while maintaining a record of each game session.</p>
-          <summary>engine_core.py</summary>
-          <div class="code-viewer"><pre><code id="engine-core-code">// Loading...</code></pre></div>
-        </details>
-        <details>
-          <p>This InputHandler class manages all player interactions in my word strategy game. It captures and processes player input, validates words against 
-            the available letter pool, and handles special commands like "quit" and "boggle". The class uses a regex pattern to distinguish between regular words 
-            and command inputs (prefixed with /), providing help text, game statistics, and category management functionality. It integrates with the game's event 
-            system to emit appropriate events when players submit words or execute commands, and includes robust error handling for keyboard interrupts and invalid 
-            inputs. The validator ensures words can be formed from available letters while tracking word usage statistics through the repository system.</p>
-          <summary>input_handler.py</summary>
-          <div class="code-viewer"><pre><code id="input-handler-code">// Loading...</code></pre></div>
-        </details>
-      </div>
+        <div class="tabs" role="tablist">
+          <button role="tab" aria-selected="true" aria-controls="tab1" id="tab1-tab" class="tab-button active" onclick="openTab(event, 'tab1')">
+            Software Design
+          </button>
+          <button role="tab" aria-selected="false" aria-controls="tab2" id="tab2-tab" class="tab-button" onclick="openTab(event, 'tab2')">
+            Algorithms & AI
+          </button>
+          <button role="tab" aria-selected="false" aria-controls="tab3" id="tab3-tab" class="tab-button" onclick="openTab(event, 'tab3')">
+            Databases
+          </button>
+          <button role="tab" aria-selected="false" aria-controls="tab4" id="tab4-tab" class="tab-button" onclick="openTab(event, 'tab4')">
+            Testing Suite
+          </button>
+        </div>
 
-      <div id="tab2" class="tab-content" role="tabpanel" aria-labelledby="tab2-tab">
-        <p>
-          My AI implementation combines multiple machine learning approaches to create a sophisticated and adaptive opponent. The system employs 
-          Monte Carlo Tree Search for strategic decision-making, Naive Bayes for pattern recognition, Markov Chains for word generation, and 
-          Q-Learning for reinforcement-based adaptation. Each model contributes unique strengths: MCTS explores possible game states through 
-          simulation, Naive Bayes learns from historical gameplay patterns, Markov Chains generate contextually appropriate words, and Q-Learning 
-          optimizes long-term strategy. The models work together through a weighted voting system, with their influence dynamically adjusted 
-          based on performance metrics. This hybrid approach allows the AI to balance exploration of new strategies with exploitation of proven 
-          tactics, creating a challenging and engaging opponent that improves over time.
-        </p>
-        <details open>
-          <p>This QLearningAgent class implements reinforcement learning for my word strategy game's AI. 
-            It learns optimal word selection strategies by mapping game states (available letters and turn number) 
-            to word choices using a Q-table. The agent employs an epsilon-greedy policy to balance exploration and 
-            exploitation - sometimes selecting random words to discover new strategies, otherwise choosing the 
-            highest-valued words from its learned experience. It updates its Q-values based on word scores and 
-            gradually reduces exploration over time as it learns. The agent integrates with the game's event system 
-            to handle word submissions and track game state changes, while maintaining statistics about its learning 
-            process and performance throughout gameplay.</p>
-          <summary>Q-Learning (q_learning_model.py)</summary>
-          <div class="code-viewer"><pre><code id="q-learning-code">// Loading...</code></pre></div>
-        </details>
-        <details>
-          <p>This MarkovChain class implements a probabilistic language model for my word strategy game's AI. It builds 
-            a transition matrix that maps sequences of letters to their likely next characters based on analyzed word patterns. 
-            The model can generate new words by probabilistically walking this transition graph while respecting available letter 
-            constraints. It maintains both start probabilities (how words typically begin) and transition probabilities (how letters 
-            follow each other), and can be trained on word lists, updated based on successful word scores, and persist its learning 
-            through a repository system. The implementation includes validation to ensure generated words meet minimum length requirements 
-            and follow dictionary rules, with configurable order parameters to control how many previous letters influence the next character 
-            choice.</p>
-          <summary>Markov Chains (markov_chain.py)</summary>
-          <div class="code-viewer"><pre><code id="markov-code">// Loading...</code></pre></div>
-        </details>
-        <details>
-          <p>This MCTS class implements Monte Carlo Tree Search for selecting optimal words in my strategy game. It builds a search tree where 
-            nodes represent partial words, using UCB1 formula to balance exploration and exploitation when selecting nodes. The algorithm runs 
-            through selection, expansion, simulation, and backpropagation phases - selecting promising nodes, expanding the search tree with 
-            available letters, simulating random word completions to evaluate potential rewards, and propagating those rewards back up the tree. 
-            Each node tracks visit counts and win values to guide the search toward high-scoring words, all while ensuring words meet minimum length 
-            requirements and come from the valid word set. The implementation interfaces with a repository system to persist learning statistics across 
-            game sessions.</p>
-          <summary>Monte Carlo Tree Search (mcts.py)</summary>
-          <div class="code-viewer"><pre><code id="mcts-code">// Loading...</code></pre></div>
-        </details>
-        <details>
-          <summary>Naive Bayes (naive_bayes.py)</summary>
-          <div class="code-viewer"><pre><code id="naive-code">// Loading...</code></pre></div>
-        </details>
-      </div>
+        <div id="tab1" class="tab-content active-tab" role="tabpanel" aria-labelledby="tab1-tab">
+          <details open>
+            <summary>game_loop.py</summary>
+            <p>This GameLoop class runs the core lifecycle of my word strategy game. It initializes all needed components (database, events, input handling),
+               manages the main game loop where players and AI take turns submitting words from available letters, handles special commands like QUIT and BOGGLE, 
+               and properly terminates the game with AI learning statistics.</p>
+            <div class="code-viewer"><pre><code id="game-loop-code">// Loading...</code></pre></div>
+          </details>
+          <details>
+            <summary>game_state.py</summary>
+            <p>This GameState class manages the core gameplay mechanics of my word strategy game. It tracks player and AI states (scores, used words), handles 
+              letter pools, validates word submissions, and processes game events through an event system.</p>
+            <div class="code-viewer"><pre><code id="game-state-code">// Loading...</code></pre></div>
+          </details>
+          <details>
+            <summary>engine_core.py</summary>
+            <p>This engine_core.py file serves as the entry point for my word strategy game. It handles all initialization tasks needed before the game can begin.</p>
+            <div class="code-viewer"><pre><code id="engine-core-code">// Loading...</code></pre></div>
+          </details>
+          <details>
+            <summary>input_handler.py</summary>
+            <p>This InputHandler class manages all player interactions in my word strategy game. It captures and processes player input, validates words against 
+              the available letter pool, and handles special commands.</p>
+            <div class="code-viewer"><pre><code id="input-handler-code">// Loading...</code></pre></div>
+          </details>
+        </div>
 
-      <div id="tab3" class="tab-content" role="tabpanel" aria-labelledby="tab3-tab">
-        <p>
-          My database implementation uses SQLite with a clean, modular architecture designed for efficient data persistence and retrieval. The 
-          system employs a repository pattern to abstract database operations, with separate repositories for different data types (game states, 
-          player statistics, AI models). I've implemented connection pooling and transaction management to ensure reliable data access, while 
-          maintaining clean separation between the database layer and business logic. The schema is optimized for common query patterns in 
-          Boggle gameplay, with appropriate indexes and constraints to ensure data integrity. The architecture supports easy extension for new 
-          data types and query patterns, with comprehensive error handling and recovery mechanisms to maintain data consistency across all 
-          operations.
-        </p>
-        <details open>
-          <summary>manager.py</summary>
-          <div class="code-viewer"><pre><code id="db-manager-code">// Loading...</code></pre></div>
-        </details>
-        <details>
-          <summary>base_repository.py</summary>
-          <div class="code-viewer"><pre><code id="repo-base-code">// Loading...</code></pre></div>
-        </details>
-      </div>
+        <div id="tab2" class="tab-content" role="tabpanel" aria-labelledby="tab2-tab">
+          <details open>
+            <summary>Q-Learning (q_learning_model.py)</summary>
+            <p>This QLearningAgent class implements reinforcement learning for my word strategy game's AI.</p>
+            <div class="code-viewer"><pre><code id="q-learning-code">// Loading...</code></pre></div>
+          </details>
+          <details>
+            <summary>Markov Chains (markov_chain.py)</summary>
+            <p>This MarkovChain class implements a probabilistic language model for my word strategy game's AI.</p>
+            <div class="code-viewer"><pre><code id="markov-code">// Loading...</code></pre></div>
+          </details>
+          <details>
+            <summary>Monte Carlo Tree Search (mcts.py)</summary>
+            <p>This MCTS class implements Monte Carlo Tree Search for selecting optimal words in my strategy game.</p>
+            <div class="code-viewer"><pre><code id="mcts-code">// Loading...</code></pre></div>
+          </details>
+          <details>
+            <summary>Naive Bayes (naive_bayes.py)</summary>
+            <p>This NaiveBayes class implements a probabilistic classifier for word selection in my strategy game.</p>
+            <div class="code-viewer"><pre><code id="naive-code">// Loading...</code></pre></div>
+          </details>
+        </div>
 
-      <div id="tab4" class="tab-content" role="tabpanel" aria-labelledby="tab4-tab">
-        <p>
-          My testing strategy employs a comprehensive, layered approach to ensure system reliability. I use pytest for test organization and execution, 
-          with fixtures for common test setups. The suite includes unit tests for individual components, integration tests for system interactions, 
-          and specialized tests for AI model behavior. Continuous integration ensures tests run on every commit, with coverage reporting to maintain 
-          high code quality standards. Mock objects and fixtures help isolate components for testing, while property-based tests verify AI model 
-          behavior across various game states.
-        </p>
-        <details open>
-          <p>This test suite validates the core game loop functionality, including turn management, event handling, and game termination. I test 
-            the interaction between game state, input handling, and AI decision-making, ensuring proper game flow and state transitions. The tests 
-            cover edge cases like invalid inputs, game termination conditions, and error recovery, making it a crucial component of my testing 
-            infrastructure.</p>
-          <summary>Game Loop Testing (test_game_loop.py)</summary>
-          <div class="code-viewer"><pre><code id="test-game-loop-code">// Loading...</code></pre></div>
-        </details>
-        <details>
-          <p>These tests verify my Monte Carlo Tree Search implementation's decision-making process. I validate the tree search algorithm's 
-            ability to balance exploration and exploitation, test node selection and expansion strategies, and ensure proper reward propagation. 
-            The suite includes tests for handling various game states, letter pool configurations, and word validation, making it essential for 
-            maintaining AI performance.</p>
-          <summary>Monte Carlo Tree Search (test_mcts.py)</summary>
-          <div class="code-viewer"><pre><code id="test-mcts-code">// Loading...</code></pre></div>
-        </details>
-        <details>
-          <p>This test suite ensures proper data persistence and retrieval for my Naive Bayes model. I verify that model parameters, 
-            probability distributions, and learning statistics are correctly stored and loaded. The tests cover database operations, 
-            transaction handling, and error recovery, ensuring reliable model state persistence across game sessions.</p>
-          <summary>Repository Testing (test_naive_bayes_repository.py)</summary>
-          <div class="code-viewer"><pre><code id="test-repo-code">// Loading...</code></pre></div>
-        </details>
-        <details>
-          <p>These tests validate my game state management system, including score tracking, word validation, and turn management. I ensure 
-            proper state transitions, event handling, and data consistency throughout the game lifecycle. The suite includes tests for edge cases 
-            like word scoring, letter pool management, and game termination conditions, making it crucial for maintaining game integrity.</p>
-          <summary>Game State Testing (test_game_state.py)</summary>
-          <div class="code-viewer"><pre><code id="test-state-code">// Loading...</code></pre></div>
-        </details>
-        <details>
-          <p>This test suite validates my input handling system, ensuring proper processing of player commands and word submissions. I test 
-            command parsing, word validation against available letters, and special command handling (like 'quit' and 'boggle'). The tests cover 
-            various input formats, error cases, and edge conditions, making it essential for maintaining a robust user interface and game 
-            interaction layer.</p>
-          <summary>Input Handler Testing (test_input_handler.py)</summary>
-          <div class="code-viewer"><pre><code id="test-input-code">// Loading...</code></pre></div>
-        </details>
-      </div>
+        <div id="tab3" class="tab-content" role="tabpanel" aria-labelledby="tab3-tab">
+          <details open>
+            <summary>manager.py</summary>
+            <p>This DatabaseManager class handles all database operations and connection management.</p>
+            <div class="code-viewer"><pre><code id="db-manager-code">// Loading...</code></pre></div>
+          </details>
+          <details>
+            <summary>base_repository.py</summary>
+            <p>This BaseRepository class provides common functionality for all repository implementations.</p>
+            <div class="code-viewer"><pre><code id="repo-base-code">// Loading...</code></pre></div>
+          </details>
+        </div>
+
+        <div id="tab4" class="tab-content" role="tabpanel" aria-labelledby="tab4-tab">
+          <details open>
+            <summary>Game Loop Testing (test_game_loop.py)</summary>
+            <p>This test suite validates the core game loop functionality, including turn management, event handling, and game termination.</p>
+            <div class="code-viewer"><pre><code id="test-game-loop-code">// Loading...</code></pre></div>
+          </details>
+          <details>
+            <summary>Monte Carlo Tree Search (test_mcts.py)</summary>
+            <p>These tests verify my Monte Carlo Tree Search implementation's decision-making process.</p>
+            <div class="code-viewer"><pre><code id="test-mcts-code">// Loading...</code></pre></div>
+          </details>
+          <details>
+            <summary>Repository Testing (test_naive_bayes_repository.py)</summary>
+            <p>This test suite ensures proper data persistence and retrieval for my Naive Bayes model.</p>
+            <div class="code-viewer"><pre><code id="test-repo-code">// Loading...</code></pre></div>
+          </details>
+          <details>
+            <summary>Game State Testing (test_game_state.py)</summary>
+            <p>These tests validate my game state management system, including score tracking, word validation, and turn management.</p>
+            <div class="code-viewer"><pre><code id="test-state-code">// Loading...</code></pre></div>
+          </details>
+          <details>
+            <summary>Input Handler Testing (test_input_handler.py)</summary>
+            <p>This test suite validates my input handling system, ensuring proper processing of player commands and word submissions.</p>
+            <div class="code-viewer"><pre><code id="test-input-code">// Loading...</code></pre></div>
+          </details>
+        </div>
+      </section>
 
       <h2> Explore My Enhancement Narratives</h2>
       <p>
