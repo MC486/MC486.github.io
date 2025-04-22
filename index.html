@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="Michael Crevier's AI Word Strategy Game portfolio, showcasing software design, AI algorithms, and database enhancements." />
   <title>AI Word Strategy Game - Portfolio</title>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
@@ -152,56 +152,43 @@
     .tech-stack-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
-      gap: var(--space-lg);
-      margin-top: var(--space-lg);
+      gap: 1.5rem;
+      margin-top: 2rem;
     }
 
     .stack-category {
-      background: var(--card-bg);
-      border-radius: 12px;
-      padding: var(--space-lg);
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
-      border: 1px solid rgba(0, 0, 0, 0.03);
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
-    }
-
-    .stack-category:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.04);
+      background: var(--surface-2);
+      border-radius: 8px;
+      padding: 1rem;
+      box-shadow: var(--shadow-2);
     }
 
     .tech-items {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: var(--space-md);
+      gap: 0.5rem;
+      margin-top: 0.5rem;
     }
 
     .tech-item {
-      position: relative;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: var(--space-md);
-      background: rgba(255, 255, 255, 0.05);
-      border-radius: 8px;
-      transition: all 0.3s ease;
-    }
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.5rem;
+  text-align: center;
+  /* font-size: 0.20rem; */
+}
 
-    .tech-item:hover {
-      background: rgba(255, 255, 255, 0.1);
-      transform: translateY(-2px);
-    }
+.tech-item i {
+  font-size: 24px; 
+  margin-bottom: 0.2rem; 
+  color: var(--text-2);
+}
 
-    .tech-item i {
-      font-size: 1.2rem;
-      margin-bottom: var(--space-sm);
-      color: var(--primary-color);
-    }
-
-    .tech-item span {
-      font-size: 0.85rem;
-      color: var(--text-color);
-    }
+.tech-item span {
+  font-size: 14px; 
+  color: var(--text-2);
+}
 
     .tooltip {
       position: absolute;
@@ -351,7 +338,7 @@
       }
 
       .tech-items {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(3, 1fr);
       }
 
       h1 {
@@ -374,7 +361,7 @@
 
     @media (max-width: 480px) {
       .tech-items {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, 1fr);
       }
     }
 
@@ -452,59 +439,6 @@
       box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
       border: 1px solid rgba(0, 0, 0, 0.05);
     }
-
-    .tech-stack {
-      margin: 3rem 0;
-    }
-
-    .tech-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 1.5rem;
-      margin-top: 2rem;
-      width: 100%;
-    }
-
-    .tech-card {
-      background: var(--surface-2);
-      border-radius: 8px;
-      padding: 1.5rem;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 0.75rem;
-      box-shadow: var(--shadow-2);
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
-      width: 100%;
-      height: 120px;
-      box-sizing: border-box;
-    }
-
-    .tech-card:hover {
-      transform: translateY(-2px);
-      box-shadow: var(--shadow-3);
-    }
-
-    .tech-card i {
-      font-size: 24px;
-      color: var(--text-2);
-      line-height: 1;
-    }
-
-    .tech-card span {
-      font-size: 14px;
-      color: var(--text-2);
-      text-align: center;
-      line-height: 1.2;
-    }
-
-    @media (max-width: 768px) {
-      .tech-grid {
-        grid-template-columns: 1fr;
-        gap: 1rem;
-      }
-    }
   </style>
 </head>
 <body>
@@ -516,16 +450,19 @@
       <p class="author">by Michael Crevier</p>
       <p>A sophisticated implementation of a word game with advanced AI capabilities, featuring Monte Carlo Tree Search and Q-Learning algorithms for optimal gameplay.</p>
       <a href="https://github.com/MC486/MC486.github.io" class="button" target="_blank">🔗 GitHub Repository</a>
-      <h2>👤 About Me</h2>
-      <p>
-        My name is <strong>Michael Crevier</strong>. I'm a computer science graduate with a focus on
-        software engineering, AI algorithms, and data-driven development. I interned with Disney's
-        Decision Science team, where I contributed to forecasting pipelines and model accuracy testing
-        for media analytics. My professional interests include machine learning, data engineering,
-        and AI-driven applications that enhance interactivity and strategy. This portfolio project
-        reflects my technical range—from reinforcement learning to structured software architecture.
-      </p>
-      <h2> Professional Self-Assessment</h2>
+      <h2>About Me</h2>
+      <div class="about-me">
+        <p>My name is <strong>Michael Crevier</strong>. I'm a computer science graduate with a focus on
+          software engineering, AI algorithms, and data-driven development.</p>
+        <p>This project has its roots in a class assignment where I built an AI pirate maze using different search algorithms. That experience sparked my interest in how AI could be applied to solve complex problems in creative ways. I've always had a passion for building things and finding ways to make processes more efficient, whether it's in code, daily tasks, or problem-solving approaches.</p>
+        
+        <p>During my internship at Disney Decision Science and Integration, where I leverage machine learning models to analyze television ratings and predict viewer behavior, I saw how these same principles could be applied to create more sophisticated systems. The transition from a class project to this word game wasn't just about changing the application - it was about finding the perfect platform to showcase how different AI strategies could work together.</p>
+        
+        <p>I'm constantly looking for ways to make things work better, whether it's optimizing code, streamlining processes, or finding creative solutions to complex problems. This project reflects that mindset - taking concepts from both academic and professional experiences and evolving them into something that demonstrates the power of combining different AI approaches. From Monte Carlo simulations to reinforcement learning, each component was carefully chosen and refined to create an engaging and challenging experience.</p>
+        
+        <p>What excites me most about technology is its ability to transform ideas into reality. This project, which grew from a class assignment into a sophisticated system, bridges my academic work with my professional experience in data science. It's a testament to how classroom learning, when combined with real-world application and a drive for efficiency, can lead to unexpected and rewarding outcomes.</p>
+      </div>
+      <h2>Professional Self-Assessment</h2>
       <p>
         This self-assessment highlights my strengths in software design, modular architecture, and AI
         integration, as well as lessons learned and future improvement areas.
@@ -560,7 +497,7 @@
             </p>
           </div>
       </section>
-      <h2>🎥 Code Review Walkthrough</h2>
+      <h2>Code Review Walkthrough</h2>
       <p>
         This video provides a guided walkthrough of the code transformation from a maze-solving AI to a
         turn-based word strategy game. It highlights the core logic, modular structure, game loop behavior,
@@ -568,44 +505,143 @@
         justifications, and the broader vision for reinforcement learning beyond simple spatial navigation.
       </p>
       <div class="video-container">
-        <iframe width="560" height="315" src="https://www.youtube.com/embed/qYYgzhYkr7c?si=eg5-GqqfuhZpbfU1" title="Video Code Review" frameborder="0" allowfullscreen></iframe>
+        <iframe width="1120" height="630" src="https://www.youtube.com/embed/qYYgzhYkr7c?si=eg5-GqqfuhZpbfU1" title="Video Code Review" frameborder="0" allowfullscreen></iframe>
       </div>
       <section class="tech-stack">
         <h2>Technical Stack</h2>
-        <p>This project leverages a diverse set of technologies to create a robust and efficient system:</p>
-        
-        <div class="tech-grid">
-          <div class="tech-card">
-            <i class="fab fa-python"></i>
-            <span>Python</span>
+        <div class="tech-stack-description">
+          <p>
+            The project leverages a sophisticated tech stack that combines powerful AI frameworks with robust development tools. Python serves as the primary language, chosen for its excellent support for machine learning and data processing. The system architecture is built on modular components that communicate through a clean event-driven interface, ensuring maintainability and scalability. The implementation includes comprehensive testing, logging, and configuration management to ensure reliability and performance.
+          </p>
+        </div>
+        <div class="stack-grid">
+          <div class="stack-category">
+            <h3>Core Technologies</h3>
+            <div class="tech-items">
+              <div class="tech-item">
+                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg" alt="Python" />
+                <span>Python 3.9+</span>
+                <div class="tooltip">Primary language for game logic and AI implementation</div>
+              </div>
+              <div class="tech-item">
+                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/sqlite/sqlite-original.svg" alt="SQLite" />
+                <span>SQLite</span>
+                <div class="tooltip">Lightweight database for game state and AI model persistence</div>
+              </div>
+              <div class="tech-item">
+                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/numpy/numpy-original.svg" alt="NumPy" />
+                <span>NumPy</span>
+                <div class="tooltip">Efficient numerical operations for AI model calculations</div>
+              </div>
+              <div class="tech-item">
+                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/pandas/pandas-original.svg" alt="Pandas" />
+                <span>Pandas</span>
+                <div class="tooltip">Data manipulation and analysis for AI training data</div>
+              </div>
+              <div class="tech-item">
+                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/yaml/yaml-original.svg" alt="PyYAML" />
+                <span>PyYAML</span>
+                <div class="tooltip">Configuration management for game settings and AI parameters</div>
+              </div>
+              <div class="tech-item">
+                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg" alt="Logging" />
+                <span>Logging</span>
+                <div class="tooltip">Debugging and monitoring system performance</div>
+              </div>
+              <div class="tech-item">
+                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg" alt="Typing" />
+                <span>Typing</span>
+                <div class="tooltip">Type hints and static type checking for code reliability</div>
+              </div>
+            </div>
           </div>
-          <div class="tech-card">
-            <i class="fab fa-js"></i>
-            <span>JavaScript</span>
+
+          <div class="stack-category">
+            <h3>AI & Machine Learning</h3>
+            <div class="tech-items">
+              <div class="tech-item">
+                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg" alt="MCTS" />
+                <span>Monte Carlo Tree Search</span>
+                <div class="tooltip">Strategic decision-making for optimal word selection</div>
+              </div>
+              <div class="tech-item">
+                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg" alt="Q-Learning" />
+                <span>Q-Learning</span>
+                <div class="tooltip">Reinforcement learning for strategy optimization</div>
+              </div>
+              <div class="tech-item">
+                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg" alt="Markov Chains" />
+                <span>Markov Chains</span>
+                <div class="tooltip">Word generation and sequence prediction</div>
+              </div>
+              <div class="tech-item">
+                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg" alt="Naive Bayes" />
+                <span>Naive Bayes</span>
+                <div class="tooltip">Pattern recognition and move prediction</div>
+              </div>
+              <div class="tech-item">
+                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg" alt="Trie" />
+                <span>Trie Data Structure</span>
+                <div class="tooltip">Efficient word validation and prefix matching</div>
+              </div>
+            </div>
           </div>
-          <div class="tech-card">
-            <i class="fas fa-database"></i>
-            <span>SQLite</span>
+
+          <div class="stack-category">
+            <h3>Development Tools</h3>
+            <div class="tech-items">
+              <div class="tech-item">
+                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/git/git-original.svg" alt="Git" />
+                <span>Git</span>
+                <div class="tooltip">Version control and collaboration management</div>
+              </div>
+              <div class="tech-item">
+                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/vscode/vscode-original.svg" alt="VS Code" />
+                <span>VS Code</span>
+                <div class="tooltip">Primary development environment with Python support</div>
+              </div>
+              <div class="tech-item">
+                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/pytest/pytest-original.svg" alt="Pytest" />
+                <span>pytest</span>
+                <div class="tooltip">Comprehensive test suite implementation</div>
+              </div>
+              <div class="tech-item">
+                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg" alt="unittest" />
+                <span>unittest</span>
+                <div class="tooltip">Built-in testing framework for core functionality</div>
+              </div>
+            </div>
           </div>
-          <div class="tech-card">
-            <i class="fas fa-brain"></i>
-            <span>Machine Learning</span>
-          </div>
-          <div class="tech-card">
-            <i class="fas fa-project-diagram"></i>
-            <span>MCTS</span>
-          </div>
-          <div class="tech-card">
-            <i class="fas fa-robot"></i>
-            <span>Reinforcement Learning</span>
-          </div>
-          <div class="tech-card">
-            <i class="fas fa-chart-line"></i>
-            <span>Data Analysis</span>
-          </div>
-          <div class="tech-card">
-            <i class="fas fa-code"></i>
-            <span>Algorithm Design</span>
+
+          <div class="stack-category">
+            <h3>System Architecture</h3>
+            <div class="tech-items">
+              <div class="tech-item">
+                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg" alt="Event System" />
+                <span>Event System</span>
+                <div class="tooltip">Decoupled communication between game components</div>
+              </div>
+              <div class="tech-item">
+                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg" alt="Repository Pattern" />
+                <span>Repository Pattern</span>
+                <div class="tooltip">Data persistence and future training storage</div>
+              </div>
+              <div class="tech-item">
+                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg" alt="Factory Pattern" />
+                <span>Factory Pattern</span>
+                <div class="tooltip">Flexible object creation for AI models</div>
+              </div>
+              <div class="tech-item">
+                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg" alt="Strategy Pattern" />
+                <span>Strategy Pattern</span>
+                <div class="tooltip">Interchangeable AI algorithms and behaviors</div>
+              </div>
+              <div class="tech-item">
+                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg" alt="Observer Pattern" />
+                <span>Observer Pattern</span>
+                <div class="tooltip">Real-time game state updates and notifications</div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -719,7 +755,7 @@
         </div>
       </section>
 
-      <h2> Explore My Enhancement Narratives</h2>
+      <h2>Explore My Enhancement Narratives</h2>
       <p>
         Read the detailed narratives for each enhancement milestone, outlining technical decisions,
         challenges, and outcomes.
