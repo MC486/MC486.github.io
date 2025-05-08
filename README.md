@@ -1,3 +1,6 @@
+## Please visit my GitHub pages about this project:  https://mc486.github.io/
+
+
 # AI Word Strategy Game
 
 A turn-based word-building game where players compete against AI opponents trained on real dictionary data and evolving gameplay patterns. Developed as a capstone enhancement project to demonstrate software design, AI integration, and long-term extensibility.
