@@ -1,7 +1,8 @@
 import unittest
 from unittest.mock import Mock, patch
 from ai.ai_player import AIPlayer
-from core.game_events import GameEvent, EventType, GameEventManager
+from core.game_events import GameEvent, EventType
+from core.game_events_manager import game_events_manager
 from ai.word_analysis import WordFrequencyAnalyzer
 from ai.strategy.ai_strategy import AIStrategy
 from database.manager import DatabaseManager
@@ -9,14 +10,22 @@ from database.manager import DatabaseManager
 class TestAIPlayer(unittest.TestCase):
     def setUp(self):
         """Setup test environment before each test"""
-        self.event_manager = Mock(spec=GameEventManager)
+        self.event_manager = Mock(spec=game_events_manager)
         self.db_manager = Mock(spec=DatabaseManager)
-        self.strategy = Mock(spec=AIStrategy)
-        self.ai_player = AIPlayer(self.event_manager, self.db_manager, self.strategy)
         
         # Mock repositories
         self.word_repo = Mock()
+        self.word_repo.get_word_stats.return_value = {}
         self.db_manager.get_word_usage_repository.return_value = self.word_repo
+        self.db_manager.get_word_repository.return_value = Mock()
+        self.db_manager.get_category_repository.return_value = Mock()
+        
+        # Mock strategy with correct method
+        self.strategy = Mock()
+        self.strategy.select_word.return_value = ""
+        self.strategy.reset = Mock()
+        
+        self.ai_player = AIPlayer(self.event_manager, self.db_manager, self.strategy)
 
     def test_initialization(self):
         """Test proper initialization"""
@@ -32,12 +41,12 @@ class TestAIPlayer(unittest.TestCase):
         available_letters = ['A', 'B', 'C', 'D', 'E']
         
         # Mock strategy response
-        self.strategy.get_word_suggestion.return_value = "BACK"
+        self.strategy.select_word.return_value = "BACK"
         
         word = self.ai_player.make_move(available_letters)
         
         self.assertEqual(word, "BACK")
-        self.strategy.get_word_suggestion.assert_called_once_with(available_letters)
+        self.strategy.select_word.assert_called_once()
         
         # Verify repository usage
         self.word_repo.record_word_usage.assert_called_once()
@@ -85,15 +94,21 @@ class TestAIPlayer(unittest.TestCase):
         """Test turn start event handling"""
         event = GameEvent(
             type=EventType.TURN_START,
-            data={"player": "ai"}
+            data={
+                "player": "ai",
+                "available_letters": ['A', 'B', 'C']
+            }
         )
         
         with patch.object(self.ai_player, 'make_move') as mock_make_move:
             mock_make_move.return_value = "WORD"
             self.ai_player._handle_turn_start(event)
             
-            mock_make_move.assert_called_once()
-            self.event_manager.emit_event.assert_called_once()
+            mock_make_move.assert_called_once_with(['A', 'B', 'C'])
+            self.event_manager.emit.assert_called_once_with(GameEvent(
+                type=EventType.WORD_SUBMITTED,
+                data={"word": "WORD", "player": "ai"}
+            ))
 
     def test_invalid_moves(self):
         """Test handling of invalid moves"""
@@ -110,15 +125,15 @@ class TestAIPlayer(unittest.TestCase):
         self.ai_player.word_history = ["HELLO"]
         
         # Mock strategy to suggest duplicate word then new word
-        self.strategy.get_word_suggestion.side_effect = ["HELLO", "WORLD"]
+        self.strategy.select_word.side_effect = ["HELLO", "WORLD"]
         
         word = self.ai_player.make_move(['H', 'E', 'L', 'O', 'W', 'R', 'D'])
         
         self.assertEqual(word, "WORLD")
-        self.assertEqual(self.strategy.get_word_suggestion.call_count, 2)
+        self.assertEqual(self.strategy.select_word.call_count, 2)
         
         # Verify repository usage
-        self.word_repo.get_by_word.assert_called()
+        self.word_repo.record_word_usage.assert_called_once()
 
     def test_performance_tracking(self):
         """Test performance statistics tracking"""

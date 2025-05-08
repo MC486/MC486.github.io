@@ -283,3 +283,31 @@ class MarkovChain:
         if len(current_state) < self.order:
             return current_state + next_letter
         return current_state[1:] + next_letter
+
+    def get_suggestion(self, available_letters: Set[str]) -> Tuple[str, float]:
+        """
+        Get word suggestion with confidence score.
+        
+        Args:
+            available_letters: Set of available letters
+            
+        Returns:
+            Tuple of (word, confidence_score)
+        """
+        word = self.generate_word(available_letters)
+        if not word:
+            return ("", 0.0)
+            
+        # Calculate confidence based on transition probabilities
+        confidence = 0.0
+        for i in range(len(word) - 1):
+            prefix = word[i:i+self.order]
+            next_char = word[i+1] if i+1 < len(word) else "END"
+            transitions = self.markov_repository.get_transitions(prefix)
+            if transitions and next_char in transitions:
+                confidence += transitions[next_char]
+                
+        # Normalize confidence
+        confidence = confidence / len(word) if word else 0.0
+        
+        return (word, confidence)

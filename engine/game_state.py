@@ -210,6 +210,10 @@ class GameState:
 
         # Score calculation
         score = score_word(word, self.word_validator)
+        # Apply penalty for repeated words
+        if repeat_count > 0:
+            score = max(1, int(score * (0.5 ** repeat_count)))  # Halve the score for each repeat
+        
         self.human_player.score += score
         self.human_player.used_words.add(word)
         self.human_player.word_usage_counts[word] = repeat_count + 1

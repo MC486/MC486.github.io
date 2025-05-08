@@ -3,6 +3,7 @@ import os
 import tempfile
 import sys
 from pathlib import Path
+import sqlite3
 
 # Add the project root to the Python path
 project_root = str(Path(__file__).parent.parent.parent)
@@ -39,7 +40,12 @@ class TestDatabaseManager(unittest.TestCase):
             'words',
             'categories',
             'ai_metrics',
-            'dictionary_domains'
+            'dictionary_domains',
+            'q_learning_states',
+            'naive_bayes_words',
+            'mcts_simulations',
+            'q_learning_rewards',
+            'markov_transitions'
         }
         self.assertTrue(expected_tables.issubset(table_names))
         
@@ -90,9 +96,19 @@ class TestDatabaseManager(unittest.TestCase):
         trigger_names = {trigger['name'] for trigger in triggers}
         expected_triggers = {
             'update_games_timestamp',
-            'update_words_timestamp',
+            'update_game_moves_timestamp',
             'update_categories_timestamp',
-            'update_domain_word_count'
+            'update_dictionary_domains_timestamp',
+            'update_words_timestamp',
+            'update_ai_metrics_timestamp',
+            'update_markov_transitions_timestamp',
+            'update_q_learning_states_timestamp',
+            'update_q_learning_rewards_timestamp',
+            'update_naive_bayes_words_timestamp',
+            'update_mcts_simulations_timestamp',
+            'update_domain_word_count_insert',
+            'update_domain_word_count_delete',
+            'update_domain_word_count_update'
         }
         self.assertTrue(expected_triggers.issubset(trigger_names))
         
@@ -174,11 +190,114 @@ class TestDatabaseManager(unittest.TestCase):
             VALUES (?, ?)
         """, ("test_word", domain_id))
         
-        # Verify word count
-        result = self.db_manager.execute_query("""
+        # Check word count increased
+        domain = self.db_manager.execute_query("""
             SELECT word_count FROM dictionary_domains WHERE id = ?
         """, (domain_id,))[0]
-        self.assertEqual(result['word_count'], 1)
+        self.assertEqual(domain['word_count'], 1)
+        
+        # Update word domain
+        new_domain_id = self.db_manager.execute_query("""
+            INSERT INTO dictionary_domains (name, description)
+            VALUES (?, ?)
+        """, ("new_domain", "New test domain"))[0]['id']
+        
+        self.db_manager.execute_query("""
+            UPDATE words SET domain_id = ? WHERE word = ?
+        """, (new_domain_id, "test_word"))
+        
+        # Check word counts updated
+        old_domain = self.db_manager.execute_query("""
+            SELECT word_count FROM dictionary_domains WHERE id = ?
+        """, (domain_id,))[0]
+        new_domain = self.db_manager.execute_query("""
+            SELECT word_count FROM dictionary_domains WHERE id = ?
+        """, (new_domain_id,))[0]
+        
+        self.assertEqual(old_domain['word_count'], 0)
+        self.assertEqual(new_domain['word_count'], 1)
+        
+        # Delete word
+        self.db_manager.execute_query("""
+            DELETE FROM words WHERE word = ?
+        """, ("test_word",))
+        
+        # Check word count decreased
+        final_domain = self.db_manager.execute_query("""
+            SELECT word_count FROM dictionary_domains WHERE id = ?
+        """, (new_domain_id,))[0]
+        self.assertEqual(final_domain['word_count'], 0)
+
+    def test_composite_primary_keys(self):
+        """Test that composite primary keys are enforced."""
+        self.db_manager.initialize_database()
+
+        # Test q_learning_states composite key
+        # First insert
+        self.db_manager.execute_query("""
+            INSERT INTO q_learning_states (state_hash, action, q_value, visit_count)
+            VALUES ('hash1', 'action1', 0.5, 1)
+        """)
+        
+        # Second insert should fail
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.db_manager.execute_query("""
+                INSERT INTO q_learning_states (state_hash, action, q_value, visit_count)
+                VALUES ('hash1', 'action1', 0.7, 1)
+            """)
+            
+        # Test naive_bayes_words composite key
+        # First insert
+        self.db_manager.execute_query("""
+            INSERT INTO naive_bayes_words (word, pattern_type, probability, visit_count)
+            VALUES ('test', 'pattern1', 0.5, 1)
+        """)
+        
+        # Second insert should fail
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.db_manager.execute_query("""
+                INSERT INTO naive_bayes_words (word, pattern_type, probability, visit_count)
+                VALUES ('test', 'pattern1', 0.7, 1)
+            """)
+            
+        # Test mcts_simulations composite key
+        # First insert
+        self.db_manager.execute_query("""
+            INSERT INTO mcts_simulations (state, action, reward, visit_count)
+            VALUES ('state1', 'action1', 0.5, 1)
+        """)
+        
+        # Second insert should fail
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.db_manager.execute_query("""
+                INSERT INTO mcts_simulations (state, action, reward, visit_count)
+                VALUES ('state1', 'action1', 0.7, 1)
+            """)
+            
+    def test_ai_foreign_key_constraints(self):
+        """Test foreign key constraints for AI-related tables."""
+        self.db_manager.create_tables()
+        
+        # Test q_learning_rewards foreign key
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.db_manager.execute_query("""
+                INSERT INTO q_learning_rewards (state_hash, reward)
+                VALUES ('nonexistent', 1.0);
+            """)
+            
+        # Test markov_transitions foreign key
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.db_manager.execute_query("""
+                INSERT INTO markov_transitions (from_word, to_word, count)
+                VALUES ('nonexistent', 'test', 1);
+            """)
+            
+        # Test naive_bayes_words foreign key
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.db_manager.execute_query("""
+                INSERT INTO naive_bayes_words (word, category, count)
+                VALUES ('test', 'nonexistent', 1);
+            """)
 
 if __name__ == '__main__':
     unittest.main() 

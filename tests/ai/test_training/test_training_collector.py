@@ -1,13 +1,14 @@
 import unittest
 from unittest.mock import Mock, patch
-from core.game_events import GameEvent, EventType, GameEventManager
-from ai.training.training_collector import TrainingCollector
+from core.game_events import GameEvent, EventType
+from core.game_events_manager import game_events_manager
+from ai.training.training_collector import TrainingDataCollector
 
 class TestTrainingCollector(unittest.TestCase):
     def setUp(self):
         """Setup test environment before each test"""
-        self.event_manager = Mock(spec=GameEventManager)
-        self.collector = TrainingCollector(self.event_manager)
+        self.event_manager = Mock(spec=game_events_manager)
+        self.collector = TrainingDataCollector(self.event_manager)
 
     def test_initialization(self):
         """Test proper initialization"""

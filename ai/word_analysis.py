@@ -44,7 +44,7 @@ class WordFrequencyAnalyzer:
         self.length_probabilities: Dict[int, float] = {}
         self.letter_probabilities: Dict[str, float] = {}
         self.event_manager = GameEventManager()
-        self.word_validator = WordValidator(self.db_manager)
+        self.word_validator = WordValidator(self.word_repo)
         
         # Set up event subscriptions
         self._setup_event_subscriptions()

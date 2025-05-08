@@ -1,12 +1,13 @@
 import unittest
 from unittest.mock import Mock, patch
-from core.game_events import GameEvent, EventType, GameEventManager
+from core.game_events import GameEvent, EventType
+from core.game_events_manager import game_events_manager
 from ai.training.game_history_tracker import GameHistoryTracker
 
 class TestGameHistoryTracker(unittest.TestCase):
     def setUp(self):
         """Setup test environment before each test"""
-        self.event_manager = Mock(spec=GameEventManager)
+        self.event_manager = Mock(spec=game_events_manager)
         self.tracker = GameHistoryTracker(self.event_manager)
 
     def test_initialization(self):

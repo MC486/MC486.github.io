@@ -18,24 +18,43 @@ from typing import TypeVar, Generic, Optional, List, Dict, Any
 from ..manager import DatabaseManager
 import logging
 from datetime import datetime, timedelta
+import sqlite3
+from contextlib import contextmanager
 
 T = TypeVar('T')
 
 class BaseRepository(Generic[T]):
     """Base repository class providing common database operations."""
     
-    def __init__(self, db_manager: DatabaseManager, table_name: Optional[str] = None):
+    def __init__(self, db_manager: DatabaseManager, table_name: str):
         """
         Initialize the base repository.
         
         Args:
             db_manager: DatabaseManager instance
-            table_name: Optional name of the table to manage
+            table_name: Name of the table to manage
+            
+        Raises:
+            ValueError: If table_name is None or empty
         """
-        self.db = db_manager
+        if not table_name:
+            raise ValueError("table_name is required")
+            
+        self.db_manager = db_manager
         self.table_name = table_name
         self.logger = logging.getLogger(self.__class__.__name__)
         
+    @contextmanager
+    def get_connection(self):
+        """
+        Get a database connection with automatic cleanup.
+        
+        Yields:
+            sqlite3.Connection: A database connection
+        """
+        with self.db_manager.get_connection() as conn:
+            yield conn
+            
     def create(self, data: Dict[str, Any]) -> int:
         """
         Create a new record in the table.
@@ -53,8 +72,10 @@ class BaseRepository(Generic[T]):
             VALUES ({placeholders})
         """
         
-        self.db.execute(query, tuple(data.values()))
-        return self.db.get_scalar("SELECT last_insert_rowid()")
+        with self.db_manager.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query, tuple(data.values()))
+            return cursor.lastrowid
         
     def get_by_id(self, id: int) -> Optional[Dict[str, Any]]:
         """
@@ -70,7 +91,15 @@ class BaseRepository(Generic[T]):
             SELECT * FROM {self.table_name}
             WHERE id = ?
         """
-        return self.db.get_one(query, (id,))
+        
+        with self.db_manager.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query, (id,))
+            row = cursor.fetchone()
+            if row:
+                columns = [description[0] for description in cursor.description]
+                return dict(zip(columns, row))
+            return None
         
     def get_all(self) -> List[Dict[str, Any]]:
         """
@@ -80,7 +109,12 @@ class BaseRepository(Generic[T]):
             List of records as dictionaries
         """
         query = f"SELECT * FROM {self.table_name}"
-        return self.db.execute_query(query)
+        
+        with self.db_manager.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query)
+            columns = [description[0] for description in cursor.description]
+            return [dict(zip(columns, row)) for row in cursor.fetchall()]
         
     def update(self, id: int, data: Dict[str, Any]) -> bool:
         """
@@ -88,24 +122,22 @@ class BaseRepository(Generic[T]):
         
         Args:
             id: The record ID
-            data: Dictionary of column names and new values
+            data: Dictionary of column names and values to update
             
         Returns:
             True if the record was updated, False otherwise
         """
-        if not data:
-            return False
-            
-        set_clause = ', '.join(f"{k} = ?" for k in data.keys())
+        set_clause = ', '.join([f"{k} = ?" for k in data.keys()])
         query = f"""
             UPDATE {self.table_name}
             SET {set_clause}
             WHERE id = ?
         """
         
-        params = list(data.values()) + [id]
-        self.db.execute(query, tuple(params))
-        return True
+        with self.db_manager.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query, tuple(data.values()) + (id,))
+            return cursor.rowcount > 0
         
     def delete(self, id: int) -> bool:
         """
@@ -122,8 +154,10 @@ class BaseRepository(Generic[T]):
             WHERE id = ?
         """
         
-        self.db.execute(query, (id,))
-        return True
+        with self.db_manager.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query, (id,))
+            return cursor.rowcount > 0
         
     def find(self, conditions: Dict[str, Any]) -> List[Dict[str, Any]]:
         """
@@ -138,13 +172,17 @@ class BaseRepository(Generic[T]):
         if not conditions:
             return self.get_all()
             
-        where_clause = ' AND '.join(f"{k} = ?" for k in conditions.keys())
+        where_clause = ' AND '.join([f"{k} = ?" for k in conditions.keys()])
         query = f"""
             SELECT * FROM {self.table_name}
             WHERE {where_clause}
         """
         
-        return self.db.execute_query(query, tuple(conditions.values()))
+        with self.db_manager.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query, tuple(conditions.values()))
+            columns = [description[0] for description in cursor.description]
+            return [dict(zip(columns, row)) for row in cursor.fetchall()]
         
     def find_one(self, conditions: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """
@@ -154,19 +192,26 @@ class BaseRepository(Generic[T]):
             conditions: Dictionary of column names and values to match
             
         Returns:
-            The matching record as a dictionary, or None if not found
+            The first matching record as a dictionary, or None if not found
         """
         if not conditions:
             return None
             
-        where_clause = ' AND '.join(f"{k} = ?" for k in conditions.keys())
+        where_clause = ' AND '.join([f"{k} = ?" for k in conditions.keys()])
         query = f"""
             SELECT * FROM {self.table_name}
             WHERE {where_clause}
             LIMIT 1
         """
         
-        return self.db.get_one(query, tuple(conditions.values()))
+        with self.db_manager.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query, tuple(conditions.values()))
+            row = cursor.fetchone()
+            if row:
+                columns = [description[0] for description in cursor.description]
+                return dict(zip(columns, row))
+            return None
         
     def count(self, conditions: Optional[Dict[str, Any]] = None) -> int:
         """
@@ -180,84 +225,95 @@ class BaseRepository(Generic[T]):
         """
         if not conditions:
             query = f"SELECT COUNT(*) FROM {self.table_name}"
-            return self.db.get_scalar(query) or 0
-            
-        where_clause = ' AND '.join(f"{k} = ?" for k in conditions.keys())
+            with self.db_manager.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(query)
+                return cursor.fetchone()[0]
+                
+        where_clause = ' AND '.join([f"{k} = ?" for k in conditions.keys()])
         query = f"""
             SELECT COUNT(*) FROM {self.table_name}
             WHERE {where_clause}
         """
         
-        return self.db.get_scalar(query, tuple(conditions.values())) or 0
+        with self.db_manager.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query, tuple(conditions.values()))
+            return cursor.fetchone()[0]
 
     def get_size_bytes(self) -> int:
         """
         Get the size of the table in bytes.
-
+        
         Returns:
-            Size in bytes
+            Size of the table in bytes
         """
-        if not self.table_name:
-            return 0
-
-        try:
-            result = self.db.execute_query("""
-                SELECT pgsize as total_size
-                FROM dbstat
-                WHERE name = ?
-            """, (self.table_name,))
-            return result[0]['total_size'] if result else 0
-        except Exception as e:
-            self.logger.error(f"Error getting table size: {e}")
-            return 0
+        query = f"""
+            SELECT SUM(pgsize) 
+            FROM dbstat 
+            WHERE name = ?
+        """
+        
+        with self.db_manager.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query, (self.table_name,))
+            return cursor.fetchone()[0] or 0
 
     def cleanup_old_entries(self, days: int) -> int:
         """
         Remove entries older than the specified number of days.
-
+        
         Args:
-            days: Number of days of inactivity before removal
-
+            days: Number of days to keep
+            
         Returns:
             Number of entries removed
         """
-        if not self.table_name:
-            return 0
-
-        try:
-            # Check if created_at column exists
-            table_info = self.db.execute_query(f"PRAGMA table_info({self.table_name})")
-            has_created_at = any(col['name'] == 'created_at' for col in table_info)
-
-            if not has_created_at:
-                self.logger.warning(f"Table {self.table_name} does not have created_at column")
-                return 0
-
-            cutoff_date = datetime.now() - timedelta(days=days)
-            result = self.db.execute_query(f"""
-                DELETE FROM {self.table_name}
-                WHERE created_at < ?
-                RETURNING COUNT(*) as deleted_count
-            """, (cutoff_date,))
-
-            return result[0]['deleted_count'] if result else 0
-        except Exception as e:
-            self.logger.error(f"Error cleaning up old entries: {e}")
-            return 0
+        cutoff_date = datetime.now() - timedelta(days=days)
+        query = f"""
+            DELETE FROM {self.table_name}
+            WHERE created_at < ?
+        """
+        
+        with self.db_manager.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query, (cutoff_date,))
+            return cursor.rowcount
 
     def get_entry_count(self) -> int:
         """
         Get the total number of entries in the table.
-
+        
         Returns:
-            The number of entries
+            Total number of entries
         """
-        if not self.table_name:
-            return 0
+        query = f"SELECT COUNT(*) FROM {self.table_name}"
+        
+        with self.db_manager.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query)
+            return cursor.fetchone()[0] 
+        cutoff_date = datetime.now() - timedelta(days=days)
+        query = f"""
+            DELETE FROM {self.table_name}
+            WHERE created_at < ?
+        """
+        
+        with self.db_manager.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query, (cutoff_date,))
+            return cursor.rowcount
 
-        try:
-            result = self.db.execute_query(f"SELECT COUNT(*) as count FROM {self.table_name}")
-            return result[0]['count'] if result else 0
-        except Exception as e:
-            self.logger.error(f"Error getting entry count: {e}")
-            return 0 
+    def get_entry_count(self) -> int:
+        """
+        Get the total number of entries in the table.
+        
+        Returns:
+            Total number of entries
+        """
+        query = f"SELECT COUNT(*) FROM {self.table_name}"
+        
+        with self.db_manager.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query)
+            return cursor.fetchone()[0] 

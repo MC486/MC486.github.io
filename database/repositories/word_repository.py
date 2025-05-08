@@ -11,84 +11,55 @@ class WordRepository(BaseRepository):
     
     def __init__(self, db_manager: DatabaseManager):
         """Initialize the word repository."""
-        super().__init__(db_manager)
-        self.table_name = 'word_usage'
+        super().__init__(db_manager, "words")
         
-        # Create word_usage table if it doesn't exist
-        self.db.execute_query("""
-            CREATE TABLE IF NOT EXISTS word_usage (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL,
-                word TEXT NOT NULL,
-                frequency INTEGER NOT NULL DEFAULT 1,
-                last_used TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        
-    def record_word_usage(self, word: str, name: str) -> None:
-        """
-        Record a word usage.
-        
-        Args:
-            word: The word used
-            name: The name of the player
-        """
-        self.db.execute_query("""
-            INSERT INTO word_usage (word, name, frequency)
-            VALUES (?, ?, 1)
-            ON CONFLICT(word, name) DO UPDATE SET
-                frequency = frequency + 1,
-                last_used = CURRENT_TIMESTAMP,
+    def record_word_usage(self, word_id: int) -> None:
+        """Record word usage and increment frequency."""
+        self.db_manager.execute_query("""
+            UPDATE words 
+            SET frequency = frequency + 1,
                 updated_at = CURRENT_TIMESTAMP
-        """)
+            WHERE id = ?
+        """, (word_id,))
         
-    def get_word_frequency(self, word: str, name: str) -> int:
+    def get_word_frequency(self, word: str) -> int:
         """
-        Get the frequency of a word for a player.
+        Get the frequency of a word.
         
         Args:
             word: The word to check
-            name: The name of the player
             
         Returns:
             The frequency of the word
         """
-        result = self.db.execute_query("""
+        result = self.db_manager.execute_query("""
             SELECT frequency
-            FROM word_usage
-            WHERE word = ? AND name = ?
-        """, (word, name))
+            FROM words
+            WHERE word = ?
+        """, (word,))
         return result[0]['frequency'] if result else 0
         
-    def get_player_stats(self, name: str) -> Dict[str, Any]:
+    def get_player_stats(self) -> Dict[str, Any]:
         """
-        Get word usage statistics for a player.
+        Get word usage statistics globally.
         
-        Args:
-            name: The name of the player
-            
         Returns:
             Dictionary containing:
-                - total_words: Total number of words used
-                - unique_words: Number of unique words used
+                - total_words: Total number of words
+                - unique_words: Number of unique words
                 - most_used: Most frequently used word
                 - average_frequency: Average word frequency
         """
-        result = self.db.execute_query("""
+        result = self.db_manager.execute_query("""
             SELECT 
                 COUNT(*) as total_words,
                 COUNT(DISTINCT word) as unique_words,
                 MAX(frequency) as max_frequency,
                 AVG(frequency) as avg_frequency,
-                (SELECT word FROM word_usage w2 
-                 WHERE w2.name = w1.name 
+                (SELECT word FROM words 
                  ORDER BY frequency DESC LIMIT 1) as most_used
-            FROM word_usage w1
-            WHERE name = ?
-            GROUP BY name
-        """, (name,))
+            FROM words
+        """)
         
         return result[0] if result else {
             'total_words': 0,
@@ -100,102 +71,109 @@ class WordRepository(BaseRepository):
         
     def get_entry_count(self) -> int:
         """
-        Get the total number of entries in the word_usage table.
+        Get the total number of words.
         
         Returns:
-            The number of entries
+            The number of words
         """
-        query = "SELECT COUNT(*) FROM word_usage"
-        return self.db.get_scalar(query) or 0
+        query = "SELECT COUNT(*) FROM words"
+        return self.db_manager.get_scalar(query) or 0
 
-    def create_table(self) -> None:
-        """Create the word_usage table if it doesn't exist."""
-        try:
-            # Drop the existing table if it exists
-            self.db.execute("DROP TABLE IF EXISTS word_usage")
-            
-            # Create the table with the updated schema
-            self.db.execute("""
-                CREATE TABLE IF NOT EXISTS word_usage (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    word TEXT NOT NULL UNIQUE,
-                    num_played INTEGER NOT NULL DEFAULT 1,
-                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-            
-            # Create index
-            self.db.execute("""
-                CREATE INDEX IF NOT EXISTS idx_word_usage_word ON word_usage(word)
-            """)
-            
-            # Create trigger for updating the updated_at timestamp
-            self.db.execute("""
-                CREATE TRIGGER IF NOT EXISTS update_word_usage_timestamp
-                AFTER UPDATE ON word_usage
-                BEGIN
-                    UPDATE word_usage SET updated_at = CURRENT_TIMESTAMP
-                    WHERE id = NEW.id;
-                END
-            """)
-            
-            logger.debug("Word usage table created successfully")
-        except Exception as e:
-            logger.error(f"Error creating word usage table: {str(e)}")
-            raise
-            
-    def add_word(self, word: str) -> None:
+    def add_word(self, word: str, category_id: int) -> int:
         """
-        Add a word to the repository or increment its usage count if it exists.
+        Add a word to a category.
         
         Args:
-            word: The word to add/update
-        """
-        try:
-            # Try to increment usage count if word exists
-            result = self.db.execute("""
-                UPDATE word_usage 
-                SET num_played = num_played + 1,
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE word = ?
-            """, (word,))
+            word: The word to add
+            category_id: ID of the category
             
-            # If word doesn't exist, insert it
-            if result.rowcount == 0:
-                self.db.execute("""
-                    INSERT INTO word_usage (word, num_played)
-                    VALUES (?, 1)
-                """, (word,))
-                
-        except Exception as e:
-            logger.error(f"Error adding/updating word {word}: {str(e)}")
-            raise
-        
-    def get_word_stats(self) -> Dict[str, Any]:
-        """
-        Get statistics about word usage.
-        
         Returns:
-            Dictionary containing word usage statistics
+            ID of the created word
         """
-        try:
-            result = self.db.execute_query("""
-                SELECT 
-                    COUNT(*) as total_words,
-                    SUM(num_played) as total_plays,
-                    AVG(num_played) as avg_plays_per_word,
-                    MAX(num_played) as max_plays
-                FROM word_usage
-            """)
-            return result[0] if result else {}
-        except Exception as e:
-            logger.error(f"Error getting word stats: {str(e)}")
-            return {}
+        data = {
+            'word': word,
+            'category_id': category_id,
+            'frequency': 0,
+            'allowed': True
+        }
+        return self.create(data)
+        
+    def get_words_by_category(self, category_id: int) -> List[Dict[str, Any]]:
+        """
+        Get all words in a category.
+        
+        Args:
+            category_id: ID of the category
+            
+        Returns:
+            List of word records
+        """
+        return self.db_manager.execute_query("""
+            SELECT *
+            FROM words
+            WHERE category_id = ?
+            ORDER BY word
+        """, (category_id,))
+        
+    def get_word_count_by_category(self, category_id: int) -> int:
+        """
+        Get the number of words in a category.
+        
+        Args:
+            category_id: ID of the category
+            
+        Returns:
+            Number of words in the category
+        """
+        result = self.db_manager.execute_query("""
+            SELECT COUNT(*) as count
+            FROM words
+            WHERE category_id = ?
+        """, (category_id,))
+        return result[0]['count'] if result else 0
+        
+    def get_word_stats_by_category(self, category_id: int) -> Dict[str, Any]:
+        """
+        Get word statistics for a category.
+        
+        Args:
+            category_id: ID of the category
+            
+        Returns:
+            Dictionary containing word statistics
+        """
+        result = self.db_manager.execute_query("""
+            SELECT 
+                COUNT(*) as total_words,
+                MIN(LENGTH(word)) as min_word_length,
+                MAX(LENGTH(word)) as max_word_length,
+                AVG(LENGTH(word)) as avg_word_length,
+                SUM(frequency) as total_usage,
+                AVG(frequency) as avg_usage
+            FROM words
+            WHERE category_id = ?
+        """, (category_id,))
+        return result[0] if result else {}
+        
+    def get_word_stats(self) -> dict:
+        """Get word statistics."""
+        result = self.db_manager.execute_query("""
+            SELECT 
+                COUNT(*) as total_words,
+                SUM(frequency) as total_usage,
+                AVG(frequency) as avg_usage,
+                MAX(frequency) as max_usage,
+                COUNT(CASE WHEN allowed = 1 THEN 1 END) as allowed_words,
+                MIN(LENGTH(word)) as min_word_length,
+                MAX(LENGTH(word)) as max_word_length,
+                AVG(LENGTH(word)) as avg_word_length
+            FROM words
+        """)
+        return result[0] if result else None
         
     def get_by_word(self, word: str) -> Optional[Dict[str, Any]]:
         """
-        Get a word's usage record by its exact spelling.
+        Get a word's record by its exact spelling.
         
         Args:
             word: The word to find
@@ -204,8 +182,8 @@ class WordRepository(BaseRepository):
             The word record if found, None otherwise
         """
         try:
-            result = self.db.execute_query(
-                "SELECT * FROM word_usage WHERE word = ?",
+            result = self.db_manager.execute_query(
+                "SELECT * FROM words WHERE word = ?",
                 (word,)
             )
             return result[0] if result else None
@@ -241,7 +219,7 @@ class WordRepository(BaseRepository):
             WHERE frequency >= ? AND frequency <= ?
             ORDER BY frequency DESC
         """
-        return self.db.execute_query(query, (min_freq, max_freq))
+        return self.db_manager.execute_query(query, (min_freq, max_freq))
         
     def get_top_words(self, limit: int = 10) -> List[Dict[str, Any]]:
         """
@@ -258,138 +236,134 @@ class WordRepository(BaseRepository):
             ORDER BY frequency DESC
             LIMIT ?
         """
-        return self.db.execute_query(query, (limit,))
+        return self.db_manager.execute_query(query, (limit,))
         
-    def increment_frequency(self, word: str) -> bool:
-        """
-        Increment the frequency count of a word.
-        
-        Args:
-            word: The word to update
-            
-        Returns:
-            True if the word was found and updated
-        """
-        query = """
-            UPDATE words
-            SET frequency = frequency + 1
-            WHERE word = ?
-        """
-        self.db.execute(query, (word,))
-        return True
+    def increment_frequency(self, word_id: int) -> None:
+        """Increment word frequency."""
+        self.db_manager.execute_query("""
+            UPDATE words 
+            SET frequency = frequency + 1,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        """, (word_id,))
         
     def search_words(self, pattern: str) -> List[Dict[str, Any]]:
-        """
-        Search for words matching a pattern.
-        
-        Args:
-            pattern: SQL LIKE pattern (e.g., 'test%' for words starting with 'test')
-            
-        Returns:
-            List of matching word records
-        """
-        query = """
-            SELECT * FROM word_usage
+        """Search for words matching a pattern."""
+        return self.db_manager.execute_query("""
+            SELECT * FROM words
             WHERE word LIKE ?
-            ORDER BY num_played DESC
-        """
-        return self.db.execute_query(query, (pattern,))
+            ORDER BY frequency DESC
+        """, (pattern,))
         
     def get_all_words(self) -> List[Dict[str, Any]]:
-        """
-        Get all words from the repository.
-        
-        Returns:
-            List of all word records
-        """
-        try:
-            return self.db.execute_query(
-                "SELECT * FROM word_usage WHERE allowed = 1"
-            )
-        except Exception as e:
-            logger.error(f"Error getting all words: {str(e)}")
-            return []
+        """Get all words."""
+        return self.db_manager.execute_query("""
+            SELECT * FROM words
+            ORDER BY word
+        """)
         
     def get_words_by_length(self, length: int) -> List[Dict[str, Any]]:
         """
         Get words of a specific length.
         
         Args:
-            length: The length of words to find
+            length: Word length
             
         Returns:
-            List of word records with the specified length
+            List of word records
         """
-        query = """
+        return self.db_manager.execute_query("""
             SELECT * FROM words
             WHERE LENGTH(word) = ?
             ORDER BY frequency DESC
-        """
-        return self.db.execute_query(query, (length,))
+        """, (length,))
         
-    def bulk_update_frequency(self, word_frequencies: Dict[str, int]) -> None:
+    def bulk_update_frequency(self, frequency_updates: Dict[int, int]) -> None:
         """
-        Update frequencies for multiple words at once.
+        Update frequencies for multiple words.
         
         Args:
-            word_frequencies: Dictionary mapping words to their new frequencies
+            frequency_updates: Dictionary of word_id to frequency
         """
-        if not word_frequencies:
-            return
-            
-        query = """
-            UPDATE words
-            SET frequency = ?
-            WHERE word = ?
-        """
-        
-        params = [(freq, word) for word, freq in word_frequencies.items()]
-        self.db.execute_many(query, params)
+        for word_id, frequency in frequency_updates.items():
+            self.db_manager.execute_query("""
+                UPDATE words 
+                SET frequency = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            """, (frequency, word_id))
         
     def get_words_without_category(self) -> List[Dict[str, Any]]:
-        """
-        Get words that don't have a category assigned.
-        
-        Returns:
-            List of uncategorized word records
-        """
-        query = """
+        """Get words without a category."""
+        return self.db_manager.execute_query("""
             SELECT * FROM words
             WHERE category_id IS NULL
-            ORDER BY frequency DESC
-        """
-        return self.db.execute_query(query)
+            ORDER BY word
+        """)
         
+    def get_valid_words(self) -> List[Dict[str, Any]]:
+        """Get all valid words."""
+        return self.db_manager.execute_query("""
+            SELECT * FROM words
+            WHERE allowed = 1
+            ORDER BY word
+        """)
+        
+    def get_rare_words(self, limit: int = 100) -> List[Dict[str, Any]]:
+        """
+        Get the least frequent words.
+        
+        Args:
+            limit: Maximum number of words to return
+            
+        Returns:
+            List of the least frequent word records
+        """
+        return self.db_manager.execute_query("""
+            SELECT * FROM words
+            ORDER BY frequency ASC
+            LIMIT ?
+        """, (limit,))
+        
+    def get_word_by_pattern(self, pattern: str) -> Optional[Dict[str, Any]]:
+        """
+        Get a word matching a pattern.
+        
+        Args:
+            pattern: Pattern to match
+            
+        Returns:
+            Word record if found, None otherwise
+        """
+        result = self.db_manager.execute_query("""
+            SELECT * FROM words
+            WHERE word LIKE ? AND allowed = 1
+            ORDER BY frequency DESC
+            LIMIT 1
+        """, (pattern,))
+        return result[0] if result else None
+
     def get_word_usage(self) -> List[Dict[str, Any]]:
         """
-        Get usage data for all words.
+        Get word usage data for all words.
         
         Returns:
-            List of dictionaries containing word usage data
+            List of dictionaries containing word usage data:
+                - word_id: ID of the word
+                - word: The word itself
+                - frequency: Number of times the word has been used
+                - last_used: Timestamp of last usage
+                - avg_score: Average score when used
         """
-        try:
-            return self.db.execute_query("""
-                SELECT word, num_played as frequency, created_at, updated_at
-                FROM word_usage
-                ORDER BY num_played DESC
-            """)
-        except Exception as e:
-            logger.error(f"Error getting word usage data: {str(e)}")
-            return []
-
-    def get_all_words(self) -> List[Dict[str, Any]]:
-        """
-        Get all words in the repository.
-        
-        Returns:
-            List of dictionaries containing word data
-        """
-        try:
-            return self.db.execute_query("""
-                SELECT word, num_played as frequency, created_at, updated_at
-                FROM word_usage
-                ORDER BY word ASC
-            """)
-        except Exception as e:
-            logger.error(f"Error getting all words: {str(e)}")
-            return [] 
+        return self.db_manager.execute_query("""
+            SELECT 
+                w.id as word_id,
+                w.word,
+                w.frequency,
+                MAX(wu.used_at) as last_used,
+                AVG(wu.score) as avg_score
+            FROM words w
+            LEFT JOIN word_usage wu ON w.id = wu.word_id
+            GROUP BY w.id, w.word, w.frequency
+            ORDER BY w.frequency DESC, w.word
+        """)

@@ -12,16 +12,16 @@ from database.repositories.q_learning_repository import QLearningRepository
 
 class TestQLearningRepository(unittest.TestCase):
     def setUp(self):
-        # Create a temporary database for testing
-        self.db_fd, self.db_path = tempfile.mkstemp()
+        """Set up test database and repository."""
+        self.temp_db = tempfile.NamedTemporaryFile(delete=False)
+        self.db_path = self.temp_db.name
         self.db_manager = DatabaseManager(self.db_path)
-        self.db_manager.create_tables()
-        self.repository = QLearningRepository(self.db_manager)
+        self.db_manager.initialize_database()  # Initialize database with schema
+        self.q_learning_repo = QLearningRepository(self.db_manager)
 
     def tearDown(self):
-        # Clean up the temporary database
-        os.close(self.db_fd)
-        os.unlink(self.db_path)
+        """Clean up the database connection."""
+        self.db_manager.close()
 
     def test_record_state_action(self):
         # Test recording a new state-action pair
@@ -30,10 +30,10 @@ class TestQLearningRepository(unittest.TestCase):
         q_value = 0.5
         visit_count = 1
 
-        self.repository.record_state_action(state_hash, action, q_value, visit_count)
+        self.q_learning_repo.record_state_action(state_hash, action, q_value, visit_count)
         
         # Verify the state-action pair was recorded
-        result = self.repository.get_q_value(state_hash, action)
+        result = self.q_learning_repo.get_q_value(state_hash, action)
         self.assertIsNotNone(result)
         self.assertEqual(result['q_value'], q_value)
         self.assertEqual(result['visit_count'], visit_count)
@@ -46,20 +46,20 @@ class TestQLearningRepository(unittest.TestCase):
         initial_visit_count = 1
 
         # Record initial state
-        self.repository.record_state_action(state_hash, action, initial_q_value, initial_visit_count)
+        self.q_learning_repo.record_state_action(state_hash, action, initial_q_value, initial_visit_count)
         
         # Update Q-value
         new_q_value = 0.7
-        self.repository.update_q_value(state_hash, action, new_q_value)
+        self.q_learning_repo.update_q_value(state_hash, action, new_q_value)
         
         # Verify the update
-        result = self.repository.get_q_value(state_hash, action)
+        result = self.q_learning_repo.get_q_value(state_hash, action)
         self.assertEqual(result['q_value'], new_q_value)
         self.assertEqual(result['visit_count'], initial_visit_count + 1)
 
     def test_get_q_value(self):
         # Test retrieving Q-value for non-existent state-action pair
-        result = self.repository.get_q_value("nonexistent_state", "nonexistent_action")
+        result = self.q_learning_repo.get_q_value("nonexistent_state", "nonexistent_action")
         self.assertIsNone(result)
 
     def test_get_state_actions(self):
@@ -69,10 +69,10 @@ class TestQLearningRepository(unittest.TestCase):
         
         # Record multiple actions for the same state
         for action in actions:
-            self.repository.record_state_action(state_hash, action, 0.5, 1)
+            self.q_learning_repo.record_state_action(state_hash, action, 0.5, 1)
         
         # Verify all actions are retrieved
-        result = self.repository.get_state_actions(state_hash)
+        result = self.q_learning_repo.get_state_actions(state_hash)
         self.assertEqual(len(result), len(actions))
         for action in result:
             self.assertIn(action['action'], actions)
@@ -88,10 +88,10 @@ class TestQLearningRepository(unittest.TestCase):
         
         # Record actions with different Q-values
         for action, q_value in actions:
-            self.repository.record_state_action(state_hash, action, q_value, 1)
+            self.q_learning_repo.record_state_action(state_hash, action, q_value, 1)
         
         # Verify the best action is retrieved
-        best_action = self.repository.get_best_action(state_hash)
+        best_action = self.q_learning_repo.get_best_action(state_hash)
         self.assertEqual(best_action['action'], "action_2")
         self.assertEqual(best_action['q_value'], 0.7)
 
@@ -106,10 +106,10 @@ class TestQLearningRepository(unittest.TestCase):
         
         # Record actions with different Q-values and visit counts
         for action, q_value, visit_count in actions:
-            self.repository.record_state_action(state_hash, action, q_value, visit_count)
+            self.q_learning_repo.record_state_action(state_hash, action, q_value, visit_count)
         
         # Verify statistics are calculated correctly
-        stats = self.repository.get_state_statistics(state_hash)
+        stats = self.q_learning_repo.get_state_statistics(state_hash)
         self.assertEqual(stats['total_actions'], len(actions))
         self.assertEqual(stats['total_visits'], sum(visit_count for _, _, visit_count in actions))
         self.assertAlmostEqual(stats['average_q_value'], sum(q_value for _, q_value, _ in actions) / len(actions))
@@ -118,23 +118,23 @@ class TestQLearningRepository(unittest.TestCase):
         # Test cleaning up old states
         # Create some old states
         old_timestamp = datetime.now().timestamp() - 86400  # 1 day old
-        self.repository.record_state_action("old_state_1", "action_1", 0.5, 1)
-        self.repository.record_state_action("old_state_2", "action_2", 0.6, 1)
+        self.q_learning_repo.record_state_action("old_state_1", "action_1", 0.5, 1)
+        self.q_learning_repo.record_state_action("old_state_2", "action_2", 0.6, 1)
         
         # Create some recent states
-        self.repository.record_state_action("recent_state_1", "action_1", 0.7, 1)
-        self.repository.record_state_action("recent_state_2", "action_2", 0.8, 1)
+        self.q_learning_repo.record_state_action("recent_state_1", "action_1", 0.7, 1)
+        self.q_learning_repo.record_state_action("recent_state_2", "action_2", 0.8, 1)
         
         # Clean up states older than 12 hours
-        self.repository.cleanup_old_states(43200)  # 12 hours in seconds
+        self.q_learning_repo.cleanup_old_states(43200)  # 12 hours in seconds
         
         # Verify old states are removed
-        self.assertIsNone(self.repository.get_q_value("old_state_1", "action_1"))
-        self.assertIsNone(self.repository.get_q_value("old_state_2", "action_2"))
+        self.assertIsNone(self.q_learning_repo.get_q_value("old_state_1", "action_1"))
+        self.assertIsNone(self.q_learning_repo.get_q_value("old_state_2", "action_2"))
         
         # Verify recent states are kept
-        self.assertIsNotNone(self.repository.get_q_value("recent_state_1", "action_1"))
-        self.assertIsNotNone(self.repository.get_q_value("recent_state_2", "action_2"))
+        self.assertIsNotNone(self.q_learning_repo.get_q_value("recent_state_1", "action_1"))
+        self.assertIsNotNone(self.q_learning_repo.get_q_value("recent_state_2", "action_2"))
 
     def test_get_all_states(self):
         # Test retrieving all states
@@ -146,10 +146,10 @@ class TestQLearningRepository(unittest.TestCase):
         
         # Record multiple states
         for state_hash, action, q_value in states:
-            self.repository.record_state_action(state_hash, action, q_value, 1)
+            self.q_learning_repo.record_state_action(state_hash, action, q_value, 1)
         
         # Verify all states are retrieved
-        result = self.repository.get_all_states()
+        result = self.q_learning_repo.get_all_states()
         self.assertEqual(len(result), len(states))
         for state in result:
             self.assertTrue(any(state['state_hash'] == s[0] for s in states))
@@ -161,10 +161,10 @@ class TestQLearningRepository(unittest.TestCase):
         
         # Record multiple actions for the same state
         for action in actions:
-            self.repository.record_state_action(state_hash, action, 0.5, 1)
+            self.q_learning_repo.record_state_action(state_hash, action, 0.5, 1)
         
         # Verify the count is correct
-        count = self.repository.get_state_action_count(state_hash)
+        count = self.q_learning_repo.get_state_action_count(state_hash)
         self.assertEqual(count, len(actions))
 
     def test_get_most_visited_states(self):
@@ -177,10 +177,10 @@ class TestQLearningRepository(unittest.TestCase):
         
         # Record states with different visit counts
         for state_hash, action, q_value, visit_count in states:
-            self.repository.record_state_action(state_hash, action, q_value, visit_count)
+            self.q_learning_repo.record_state_action(state_hash, action, q_value, visit_count)
         
         # Verify the most visited states are retrieved in correct order
-        result = self.repository.get_most_visited_states(2)
+        result = self.q_learning_repo.get_most_visited_states(2)
         self.assertEqual(len(result), 2)
         self.assertEqual(result[0]['state_hash'], "state_2")
         self.assertEqual(result[1]['state_hash'], "state_1")
@@ -196,10 +196,10 @@ class TestQLearningRepository(unittest.TestCase):
         
         # Record actions with different visit counts
         for action, q_value, visit_count in actions:
-            self.repository.record_state_action(state_hash, action, q_value, visit_count)
+            self.q_learning_repo.record_state_action(state_hash, action, q_value, visit_count)
         
         # Verify total visits are correct
-        total_visits = self.repository.get_state_visit_count(state_hash)
+        total_visits = self.q_learning_repo.get_state_visit_count(state_hash)
         self.assertEqual(total_visits, sum(visit_count for _, _, visit_count in actions))
 
     def test_get_action_visit_count(self):
@@ -209,10 +209,10 @@ class TestQLearningRepository(unittest.TestCase):
         visit_count = 5
         
         # Record action with specific visit count
-        self.repository.record_state_action(state_hash, action, 0.5, visit_count)
+        self.q_learning_repo.record_state_action(state_hash, action, 0.5, visit_count)
         
         # Verify visit count is correct
-        count = self.repository.get_action_visit_count(state_hash, action)
+        count = self.q_learning_repo.get_action_visit_count(state_hash, action)
         self.assertEqual(count, visit_count)
 
     def test_get_state_action_stats(self):
@@ -223,10 +223,10 @@ class TestQLearningRepository(unittest.TestCase):
         visit_count = 3
         
         # Record state-action pair
-        self.repository.record_state_action(state_hash, action, q_value, visit_count)
+        self.q_learning_repo.record_state_action(state_hash, action, q_value, visit_count)
         
         # Verify stats are correct
-        stats = self.repository.get_state_action_stats(state_hash, action)
+        stats = self.q_learning_repo.get_state_action_stats(state_hash, action)
         self.assertEqual(stats['q_value'], q_value)
         self.assertEqual(stats['visit_count'], visit_count)
         self.assertIsNotNone(stats['last_updated'])
@@ -242,10 +242,10 @@ class TestQLearningRepository(unittest.TestCase):
         
         # Record multiple states with different characteristics
         for state_hash, action, q_value, visit_count in states:
-            self.repository.record_state_action(state_hash, action, q_value, visit_count)
+            self.q_learning_repo.record_state_action(state_hash, action, q_value, visit_count)
         
         # Verify progress metrics
-        progress = self.repository.get_learning_progress()
+        progress = self.q_learning_repo.get_learning_progress()
         self.assertEqual(progress['states_explored'], len(states))
         self.assertEqual(progress['actions_tried'], len(states))
         self.assertGreater(progress['exploration_rate'], 0)
@@ -259,20 +259,20 @@ class TestQLearningRepository(unittest.TestCase):
         visit_count = 4
         
         # Record initial state
-        self.repository.record_state_action(state_hash, action, q_value, visit_count)
+        self.q_learning_repo.record_state_action(state_hash, action, q_value, visit_count)
         
         # Create backup
         backup_name = "test_backup"
-        self.assertTrue(self.repository.backup_q_values(backup_name))
+        self.assertTrue(self.q_learning_repo.backup_q_values(backup_name))
         
         # Modify the state
-        self.repository.update_q_value(state_hash, action, 0.9)
+        self.q_learning_repo.update_q_value(state_hash, action, 0.9)
         
         # Restore from backup
-        self.assertTrue(self.repository.restore_q_values(backup_name))
+        self.assertTrue(self.q_learning_repo.restore_q_values(backup_name))
         
         # Verify restored values
-        result = self.repository.get_q_value(state_hash, action)
+        result = self.q_learning_repo.get_q_value(state_hash, action)
         self.assertEqual(result['q_value'], q_value)
         self.assertEqual(result['visit_count'], visit_count)
 

@@ -1,4 +1,4 @@
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional, Tuple, Any
 from datetime import datetime
 from ..manager import DatabaseManager
 from .base_repository import BaseRepository
@@ -8,56 +8,35 @@ class QLearningRepository(BaseRepository):
     
     def __init__(self, db_manager: DatabaseManager):
         """Initialize the Q-learning repository."""
-        super().__init__(db_manager)
-        self.table_name = "q_learning"
+        super().__init__(db_manager, "q_learning_states")
         
-        # Create q_learning_states table if it doesn't exist
-        self.db.execute_query("""
-            CREATE TABLE IF NOT EXISTS q_learning_states (
-                state_hash TEXT NOT NULL,
-                action TEXT NOT NULL,
-                q_value REAL NOT NULL DEFAULT 0.0,
-                visit_count INTEGER NOT NULL DEFAULT 1,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                PRIMARY KEY (state_hash, action)
-            )
-        """)
-        
-    def record_state_action(self, state_hash: str, action: str, reward: float, 
-                          next_state_hash: str, learning_rate: float = 0.1, 
-                          discount_factor: float = 0.9) -> None:
+    def record_state_action(self, state_hash: str, action: str, q_value: float, visit_count: int = 1) -> None:
         """
-        Record a state-action pair and update its Q-value.
+        Record a state-action pair.
         
         Args:
-            state_hash: Hash of the current state
+            state_hash: Hash of the state
             action: Action taken
-            reward: Reward received
-            next_state_hash: Hash of the next state
-            learning_rate: Learning rate (default: 0.1)
-            discount_factor: Discount factor (default: 0.9)
+            q_value: Q-value for the state-action pair
+            visit_count: Number of times this state-action pair has been visited
         """
-        # Get current Q-value
-        current_q = self.get_q_value(state_hash, action)
-        
-        # Get max Q-value for next state
-        max_next_q = self.get_max_q_value(next_state_hash)
-        
-        # Calculate new Q-value using Bellman equation
-        new_q = current_q + learning_rate * (reward + discount_factor * max_next_q - current_q)
-        
-        # Update Q-value
+        # First try to update existing record
         self.db.execute_query("""
-            INSERT INTO q_learning_states (state_hash, action, q_value, visit_count)
-            VALUES (?, ?, ?, 1)
-            ON CONFLICT(state_hash, action) DO UPDATE SET
-                q_value = ?,
-                visit_count = visit_count + 1,
+            UPDATE q_learning_states
+            SET q_value = ?,
+                visit_count = visit_count + ?,
                 updated_at = CURRENT_TIMESTAMP
-        """, (state_hash, action, new_q, new_q))
+            WHERE state_hash = ? AND action = ?
+        """, (q_value, visit_count, state_hash, action))
         
-    def get_q_value(self, state_hash: str, action: str) -> float:
+        # If no rows were updated, insert new record
+        if self.db.get_scalar("SELECT changes()") == 0:
+            self.db.execute_query("""
+                INSERT INTO q_learning_states (state_hash, action, q_value, visit_count)
+                VALUES (?, ?, ?, ?)
+            """, (state_hash, action, q_value, visit_count))
+        
+    def get_q_value(self, state_hash: str, action: str) -> Optional[Dict[str, Any]]:
         """
         Get the Q-value for a state-action pair.
         
@@ -66,14 +45,93 @@ class QLearningRepository(BaseRepository):
             action: Action taken
             
         Returns:
-            Q-value for the state-action pair
+            Dictionary containing q_value and visit_count, or None if not found
         """
         result = self.db.execute_query("""
-            SELECT q_value FROM q_learning_states
+            SELECT q_value, visit_count
+            FROM q_learning_states
             WHERE state_hash = ? AND action = ?
         """, (state_hash, action))
         
-        return result[0]['q_value'] if result else 0.0
+        return result[0] if result else None
+        
+    def update_q_value(self, state_hash: str, action: str, new_q_value: float) -> bool:
+        """
+        Update the Q-value for a state-action pair.
+        
+        Args:
+            state_hash: Hash of the state
+            action: Action taken
+            new_q_value: New Q-value to set
+            
+        Returns:
+            True if successful
+        """
+        self.db.execute_query("""
+            UPDATE q_learning_states
+            SET q_value = ?,
+                visit_count = visit_count + 1,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE state_hash = ? AND action = ?
+        """, (new_q_value, state_hash, action))
+        return True
+        
+    def get_state_actions(self, state_hash: str) -> List[Dict[str, Any]]:
+        """
+        Get all actions for a state.
+        
+        Args:
+            state_hash: Hash of the state
+            
+        Returns:
+            List of dictionaries containing action data
+        """
+        return self.db.execute_query("""
+            SELECT action, q_value, visit_count
+            FROM q_learning_states
+            WHERE state_hash = ?
+            ORDER BY q_value DESC
+        """, (state_hash,))
+        
+    def get_best_action(self, state_hash: str) -> Optional[Dict[str, Any]]:
+        """
+        Get the best action for a state.
+        
+        Args:
+            state_hash: Hash of the state
+            
+        Returns:
+            Dictionary containing action data or None if no actions found
+        """
+        result = self.db.execute_query("""
+            SELECT action, q_value, visit_count
+            FROM q_learning_states
+            WHERE state_hash = ?
+            ORDER BY q_value DESC
+            LIMIT 1
+        """, (state_hash,))
+        
+        return result[0] if result else None
+        
+    def cleanup_old_states(self, days: int = 30) -> int:
+        """
+        Clean up old state-action pairs.
+        
+        Args:
+            days: Number of days to keep entries for
+            
+        Returns:
+            Number of entries removed
+        """
+        # Delete old states
+        self.db.execute("""
+            DELETE FROM q_learning_states
+            WHERE updated_at < datetime('now', ?)
+        """, (f'-{days} days',))
+        
+        # Get number of rows affected
+        result = self.db.get_scalar("SELECT changes()")
+        return result or 0
         
     def get_max_q_value(self, state_hash: str) -> float:
         """
@@ -93,27 +151,7 @@ class QLearningRepository(BaseRepository):
         
         return result[0]['max_q'] if result and result[0]['max_q'] is not None else 0.0
         
-    def get_best_action(self, state_hash: str) -> Optional[str]:
-        """
-        Get the best action for a state.
-        
-        Args:
-            state_hash: Hash of the state
-            
-        Returns:
-            Best action for the state, or None if no actions recorded
-        """
-        result = self.db.execute_query("""
-            SELECT action
-            FROM q_learning_states
-            WHERE state_hash = ?
-            ORDER BY q_value DESC
-            LIMIT 1
-        """, (state_hash,))
-        
-        return result[0]['action'] if result else None
-        
-    def get_state_stats(self, state_hash: str) -> Dict:
+    def get_state_statistics(self, state_hash: str) -> Dict:
         """
         Get statistics for a state.
         
@@ -123,41 +161,29 @@ class QLearningRepository(BaseRepository):
         Returns:
             Dictionary containing:
                 - total_actions: Total number of actions tried
-                - best_action: Best action found
-                - best_q_value: Q-value of best action
+                - total_visits: Total number of visits across all actions
                 - average_q_value: Average Q-value across all actions
-                - exploration_rate: 1 / sqrt(visit_count)
         """
         result = self.db.execute_query("""
             SELECT 
                 COUNT(*) as total_actions,
-                MAX(q_value) as best_q_value,
-                AVG(q_value) as average_q_value,
                 SUM(visit_count) as total_visits,
-                action as best_action
+                AVG(q_value) as average_q_value
             FROM q_learning_states
             WHERE state_hash = ?
-            GROUP BY state_hash
         """, (state_hash,))
         
         if not result:
             return {
                 'total_actions': 0,
-                'best_action': None,
-                'best_q_value': 0.0,
-                'average_q_value': 0.0,
-                'exploration_rate': 1.0
+                'total_visits': 0,
+                'average_q_value': 0.0
             }
             
-        stats = result[0]
-        exploration_rate = 1.0 / (stats['total_visits'] ** 0.5) if stats['total_visits'] > 0 else 1.0
-        
         return {
-            'total_actions': stats['total_actions'],
-            'best_action': stats['best_action'],
-            'best_q_value': stats['best_q_value'],
-            'average_q_value': stats['average_q_value'],
-            'exploration_rate': exploration_rate
+            'total_actions': result[0]['total_actions'],
+            'total_visits': result[0]['total_visits'],
+            'average_q_value': result[0]['average_q_value']
         }
         
     def get_learning_stats(self) -> Dict:
@@ -198,41 +224,6 @@ class QLearningRepository(BaseRepository):
             'least_explored_state': None
         }
         
-    def cleanup_old_states(self, days: int = 30) -> int:
-        """
-        Remove states that haven't been updated in the specified number of days.
-        
-        Args:
-            days: Number of days after which to remove states
-            
-        Returns:
-            Number of states removed
-        """
-        result = self.db.execute_query("""
-            DELETE FROM q_learning_states
-            WHERE updated_at < datetime('now', ?)
-            SELECT changes()
-        """, (f"-{days} days",))
-        
-        return result[0]['changes()'] if result else 0
-        
-    def get_state_actions(self, state_hash: str) -> List[Dict]:
-        """
-        Get all actions and their Q-values for a state.
-        
-        Args:
-            state_hash: Hash of the state
-            
-        Returns:
-            List of dictionaries containing action, q_value, and visit_count
-        """
-        return self.db.execute_query("""
-            SELECT action, q_value, visit_count
-            FROM q_learning_states
-            WHERE state_hash = ?
-            ORDER BY q_value DESC
-        """, (state_hash,))
-        
     def get_least_explored_action(self, state_hash: str) -> Optional[str]:
         """
         Get the least explored action for a state.
@@ -253,17 +244,21 @@ class QLearningRepository(BaseRepository):
         
         return result[0]['action'] if result else None
         
-    def reset_state(self, state_hash: str) -> None:
+    def reset_state(self, state_hash: str) -> bool:
         """
-        Reset all Q-values and visit counts for a state.
+        Reset all Q-values for a state.
         
         Args:
-            state_hash: Hash of the state to reset
+            state_hash: Hash of the state
+            
+        Returns:
+            True if the reset was successful
         """
         self.db.execute_query("""
             DELETE FROM q_learning_states
             WHERE state_hash = ?
         """, (state_hash,))
+        return True
         
     def optimize_q_values(self, min_visits: int = 5) -> int:
         """
@@ -472,4 +467,43 @@ class QLearningRepository(BaseRepository):
             The number of entries
         """
         query = "SELECT COUNT(*) FROM q_learning_states"
-        return self.db.get_scalar(query) or 0 
+        return self.db.get_scalar(query) or 0
+
+    def get_exploration_rate(self, state_hash: str, action: str) -> float:
+        """
+        Get the exploration rate for a state-action pair.
+        
+        Args:
+            state_hash: Hash of the state
+            action: Action taken
+            
+        Returns:
+            Exploration rate (1/sqrt(visit_count))
+        """
+        result = self.db.execute_query("""
+            SELECT visit_count
+            FROM q_learning_states
+            WHERE state_hash = ? AND action = ?
+        """, (state_hash, action))
+        
+        visit_count = result[0]['visit_count'] if result else 0
+        return 1.0 / ((visit_count + 1) ** 0.5)
+
+    def get_state_history(self, state_hash: str, limit: int = 10) -> List[Dict[str, Any]]:
+        """
+        Get the history of Q-value updates for a state.
+        
+        Args:
+            state_hash: Hash of the state
+            limit: Maximum number of records to return
+            
+        Returns:
+            List of dictionaries containing action, q_value, and timestamp
+        """
+        return self.db.execute_query("""
+            SELECT action, q_value, updated_at
+            FROM q_learning_states
+            WHERE state_hash = ?
+            ORDER BY updated_at DESC
+            LIMIT ?
+        """, (state_hash, limit)) 

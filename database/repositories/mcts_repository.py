@@ -4,46 +4,87 @@ from ..manager import DatabaseManager
 from .base_repository import BaseRepository
 
 class MCTSRepository(BaseRepository):
-    """Repository for storing MCTS model data."""
+    """Repository for MCTS state and action data."""
     
     def __init__(self, db_manager):
         """Initialize the MCTS repository."""
-        super().__init__(db_manager)
-        self.table_name = "mcts"
+        super().__init__(db_manager, table_name="mcts_states")
+        self.db_manager = db_manager
         
-        # Create mcts_simulations table if it doesn't exist
-        self.db.execute_query("""
-            CREATE TABLE IF NOT EXISTS mcts_simulations (
-                state TEXT NOT NULL,
-                action TEXT NOT NULL,
-                reward REAL NOT NULL,
-                visit_count INTEGER NOT NULL DEFAULT 1,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                PRIMARY KEY (state, action)
+    def get_state_actions(self, state):
+        """Get all actions and their statistics for a given state."""
+        query = """
+            SELECT action, avg_reward, visit_count
+            FROM mcts_actions
+            WHERE state = ?
+        """
+        return self.db_manager.execute_query(query, (state,))
+        
+    def get_best_action(self, state):
+        """Get the best action for a given state based on average reward."""
+        query = """
+            SELECT action
+            FROM mcts_actions
+            WHERE state = ?
+            ORDER BY avg_reward DESC
+            LIMIT 1
+        """
+        result = self.db_manager.execute_query(query, (state,))
+        return result[0]['action'] if result else None
+        
+    def record_simulation(self, state, action, reward):
+        """Record the results of a simulation."""
+        # Update state statistics
+        self.db_manager.execute(
+            """
+            INSERT OR REPLACE INTO mcts_states (state, visit_count)
+            VALUES (?, COALESCE((SELECT visit_count FROM mcts_states WHERE state = ?), 0) + 1)
+            """,
+            (state, state)
+        )
+        
+        # Update action statistics
+        self.db_manager.execute(
+            """
+            INSERT OR REPLACE INTO mcts_actions 
+            (state, action, avg_reward, visit_count)
+            VALUES (
+                ?,
+                ?,
+                COALESCE(
+                    (SELECT (avg_reward * visit_count + ?) / (visit_count + 1)
+                     FROM mcts_actions 
+                     WHERE state = ? AND action = ?),
+                    ?
+                ),
+                COALESCE((SELECT visit_count FROM mcts_actions WHERE state = ? AND action = ?), 0) + 1
             )
-        """)
+            """,
+            (state, action, reward, state, action, reward, state, action)
+        )
         
-    def record_simulation(self, state: str, action: str, reward: float, 
-                         visit_count: int = 1) -> None:
+    def cleanup_old_entries(self, max_age_days=30):
+        """Remove old entries from the database."""
+        self.db_manager.execute(
+            """
+            DELETE FROM mcts_states
+            WHERE last_updated < datetime('now', ?)
+            """,
+            (f"-{max_age_days} days",)
+        )
+        
+    def get_learning_stats(self):
+        """Get statistics about the learning process."""
+        query = """
+            SELECT 
+                COUNT(DISTINCT state) as total_states,
+                COUNT(DISTINCT action) as total_actions,
+                AVG(visit_count) as avg_visits,
+                MAX(avg_reward) as max_reward
+            FROM mcts_actions
         """
-        Record a simulation result for a state-action pair.
-        
-        Args:
-            state: Current game state
-            action: Action taken
-            reward: Reward received
-            visit_count: Number of times this state-action pair was visited
-        """
-        self.db.execute_query("""
-            INSERT INTO mcts_simulations (state, action, reward, visit_count)
-            VALUES (?, ?, ?, ?)
-            ON CONFLICT(state, action) DO UPDATE SET
-                reward = (reward * visit_count + ?) / (visit_count + 1),
-                visit_count = visit_count + 1,
-                updated_at = CURRENT_TIMESTAMP
-        """, (state, action, reward, visit_count, reward))
-        
+        return self.db_manager.execute_query(query)[0]
+
     def get_state_action_stats(self, state: str, action: str) -> Dict:
         """
         Get statistics for a state-action pair.
@@ -75,111 +116,4 @@ class MCTSRepository(BaseRepository):
             'reward': result[0]['reward'],
             'visit_count': result[0]['visit_count'],
             'last_updated': result[0]['updated_at']
-        }
-        
-    def get_state_actions(self, state: str) -> Dict[str, Dict]:
-        """
-        Get all actions and their statistics for a state.
-        
-        Args:
-            state: Game state
-            
-        Returns:
-            Dict[str, Dict]: Dictionary of actions and their statistics
-        """
-        results = self.db.execute_query("""
-            SELECT action, reward, visit_count
-            FROM mcts_simulations
-            WHERE state = ?
-        """, (state,))
-        
-        return {
-            row['action']: {
-                'reward': row['reward'],
-                'visit_count': row['visit_count']
-            }
-            for row in results
-        }
-        
-    def get_best_action(self, state: Union[str, List[str]]) -> Optional[str]:
-        """
-        Get the best action for a state based on average reward.
-        
-        Args:
-            state: Game state (string or list of letters)
-            
-        Returns:
-            Optional[str]: Best action if found, None otherwise
-        """
-        # Convert list to string if needed
-        state_str = ''.join(state) if isinstance(state, list) else state
-        
-        result = self.db.execute_query("""
-            SELECT action
-            FROM mcts_simulations
-            WHERE state = ?
-            ORDER BY reward DESC
-            LIMIT 1
-        """, (state_str,))
-        
-        return result[0]['action'] if result else None
-        
-    def cleanup_old_entries(self, days: int = 30) -> int:
-        """
-        Remove entries that haven't been updated in the specified number of days.
-        
-        Args:
-            days: Number of days after which to remove entries
-            
-        Returns:
-            int: Number of entries removed
-        """
-        # First get the count of rows that will be deleted
-        result = self.db.execute_query("""
-            SELECT COUNT(*) as count
-            FROM mcts_simulations
-            WHERE updated_at < datetime('now', ?)
-        """, (f"-{days} days",))
-        count = result[0]['count'] if result else 0
-        
-        # Then delete the rows
-        self.db.execute_query("""
-            DELETE FROM mcts_simulations
-            WHERE updated_at < datetime('now', ?)
-        """, (f"-{days} days",))
-        
-        return count
-        
-    def get_learning_stats(self) -> Dict:
-        """
-        Get overall statistics about the MCTS model.
-        
-        Returns:
-            Dict containing:
-                - total_states: Total unique states
-                - total_actions: Total unique actions
-                - average_reward: Average reward across all simulations
-                - most_visited_state: State with most visits
-        """
-        result = self.db.execute_query("""
-            WITH state_stats AS (
-                SELECT 
-                    state,
-                    SUM(visit_count) as total_visits
-                FROM mcts_simulations
-                GROUP BY state
-            )
-            SELECT 
-                COUNT(DISTINCT state) as total_states,
-                COUNT(DISTINCT action) as total_actions,
-                AVG(reward) as average_reward,
-                (SELECT state FROM state_stats ORDER BY total_visits DESC LIMIT 1) as most_visited_state
-            FROM mcts_simulations
-        """)
-        
-        return result[0] if result else {
-            'total_states': 0,
-            'total_actions': 0,
-            'average_reward': 0.0,
-            'most_visited_state': None
         } 

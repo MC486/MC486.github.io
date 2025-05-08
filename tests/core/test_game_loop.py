@@ -5,13 +5,27 @@ import unittest
 from unittest.mock import patch, MagicMock, Mock
 from engine.game_loop import GameLoop
 from core.game_events import EventType
+from database.manager import DatabaseManager
+from database.repository_manager import RepositoryManager
 
 class TestGameLoop(unittest.TestCase):
     def setUp(self):
         """
         Sets up the game loop for each test.
         """
-        self.game = GameLoop()
+        self.db_manager = Mock(spec=DatabaseManager)
+        self.repo_manager = Mock(spec=RepositoryManager)
+        
+        # Mock repository manager's repositories
+        self.repo_manager.repositories = {
+            'word': Mock(),
+            'category': Mock()
+        }
+        
+        self.game = GameLoop(
+            db_manager=self.db_manager,
+            repo_manager=self.repo_manager
+        )
         self.event_manager = self.game.event_manager
 
     @patch('builtins.input', side_effect=["TestPlayer", "QUIT"])

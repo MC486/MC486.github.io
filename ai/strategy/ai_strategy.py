@@ -3,10 +3,7 @@ import logging
 from collections import defaultdict
 from core.game_events import GameEvent, EventType
 from core.game_events_manager import GameEventManager
-from ai.models.markov_chain import MarkovChain
-from ai.models.naive_bayes import NaiveBayes
-from ai.models.mcts import MCTS
-from ai.models.q_learning import QLearning
+from ai.models import MarkovChain, MCTS, NaiveBayes, QLearning
 from core.validation.word_validator import WordValidator
 from core.validation.trie import Trie
 from ai.word_analysis import WordFrequencyAnalyzer
@@ -15,6 +12,7 @@ from database.repositories.markov_repository import MarkovRepository
 from database.repositories.word_repository import WordRepository
 from database.repositories.category_repository import CategoryRepository
 import numpy as np
+from unittest.mock import Mock
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +51,12 @@ class AIStrategy:
             word_repo=word_repo,
             category_repo=category_repo
         )
-        self.markov_repository = MarkovRepository(self.db_manager)
+        
+        # Get repositories
+        self.markov_repository = self.db_manager.get_markov_repository()
+        self.naive_bayes_repository = self.db_manager.get_naive_bayes_repository()
+        self.mcts_repository = self.db_manager.get_mcts_repository()
+        self.q_learning_repository = self.db_manager.get_q_learning_repository()
         
         # Initialize word analyzer with empty list since we're using on-demand validation
         self.word_analyzer.analyze_word_list([])
@@ -88,19 +91,16 @@ class AIStrategy:
         self.q_agent = QLearning(
             event_manager=self.event_manager,
             word_analyzer=self.word_analyzer,
-            q_learning_repository=self.db_manager.get_q_learning_repository()
+            repository=self.q_learning_repository
         )
         
-        # Set up confidence thresholds based on difficulty
-        self.confidence_thresholds = {
-            'easy': 0.3,
-            'medium': 0.5,
-            'hard': 0.7
+        # Initialize AI components
+        self.models = {
+            'markov': self.markov_chain,
+            'mcts': self.mcts,
+            'naive_bayes': self.naive_bayes,
+            'q_learning': self.q_agent
         }
-        
-        # Subscribe to relevant game events
-        self._setup_event_subscriptions()
-        logger.info(f"AIStrategy initialized with difficulty: {difficulty}")
         
         # Model weights based on difficulty
         self.model_weights = self._initialize_weights(difficulty)
@@ -108,6 +108,10 @@ class AIStrategy:
         # Performance tracking
         self.total_decisions = 0
         self.successful_words = 0
+        
+        # Subscribe to relevant game events
+        self._setup_event_subscriptions()
+        logger.info(f"AIStrategy initialized with difficulty: {difficulty}")
 
     def _setup_event_subscriptions(self) -> None:
         """Set up event subscriptions for strategy updates."""
@@ -144,22 +148,64 @@ class AIStrategy:
 
     def _handle_word_submission(self, event: GameEvent) -> None:
         """Handle word submission events"""
-        # Update model weights based on success
         word = event.data.get("word", "")
         score = event.data.get("score", 0)
+        model = event.data.get("model", "")
         
-        if score > 0:
+        if score > 0 and model:
             self._adjust_weights(word, score)
+            self.track_performance(model, word, True)
+            
+            # Record word usage
+            repo = getattr(self.db_manager, f"get_{model}_repository")()
+            if hasattr(repo, "record_word_usage"):
+                repo.record_word_usage(word)
 
     def _handle_game_start(self, event: GameEvent) -> None:
         """Handle game start events"""
         self.difficulty = event.data.get("difficulty", self.difficulty)
         self.model_weights = self._initialize_weights(self.difficulty)
+        
+        # Reset all models
+        for model_name in self.models:
+            repo = getattr(self.db_manager, f"get_{model_name}_repository")()
+            if hasattr(repo, "reset_model"):
+                repo.reset_model()
 
     def _adjust_weights(self, word: str, score: int) -> None:
         """Adjust model weights based on success"""
-        # Implementation for dynamic weight adjustment
-        pass
+        # Get the model that generated this word
+        model_name = None
+        for model in self.model_weights.keys():
+            if model in word.lower():  # Simple heuristic to identify model
+                model_name = model
+                break
+        
+        if not model_name:
+            return
+            
+        # Calculate adjustment factor based on score
+        adjustment = min(0.1, score / 100)  # Cap adjustment at 0.1
+        
+        # Increase weight for successful model
+        self.model_weights[model_name] += adjustment
+        
+        # Decrease weights for other models proportionally
+        other_models = [m for m in self.model_weights.keys() if m != model_name]
+        if other_models:
+            decrease_per_model = adjustment / len(other_models)
+            for model in other_models:
+                self.model_weights[model] = max(0.1, self.model_weights[model] - decrease_per_model)
+        
+        # Normalize weights to sum to 1
+        total = sum(self.model_weights.values())
+        for model in self.model_weights:
+            self.model_weights[model] /= total
+            
+        # Update repository
+        repo = getattr(self.db_manager, f"get_{model_name}_repository")()
+        if hasattr(repo, "update_model_weight"):
+            repo.update_model_weight(self.model_weights[model_name])
 
     def get_stats(self) -> Dict:
         """Get strategy statistics"""
@@ -185,6 +231,9 @@ class AIStrategy:
         Returns:
             Selected word
         """
+        if shared_letters is None or private_letters is None:
+            return ""
+            
         self.total_decisions += 1
         available_letters = shared_letters.union(private_letters)
         
@@ -227,63 +276,38 @@ class AIStrategy:
         """Generate candidate words from all models"""
         candidates = set()
         
-        # Markov Chain candidates
-        markov_words = self.markov_chain.generate_word(available_letters)
-        if markov_words and self.word_validator.validate_word_with_letters(markov_words, available_letters):
-            candidates.add(markov_words)
-        
-        # MCTS candidates
-        mcts_word = self.mcts.run(list(available_letters), [])
-        if mcts_word and self.word_validator.validate_word_with_letters(mcts_word, available_letters):
-            candidates.add(mcts_word)
-        
-        # Q-Learning candidates
-        state = self._convert_letters_to_state(available_letters)
-        action = self.q_agent.choose_action(state)
-        q_word = self._convert_action_to_word(action, available_letters)
-        if q_word and self.word_validator.validate_word_with_letters(q_word, available_letters):
-            candidates.add(q_word)
+        # Get suggestions from each model
+        for model_name, model in self.models.items():
+            if hasattr(model, "get_suggestion"):
+                try:
+                    word, _ = model.get_suggestion(available_letters)
+                    if word and self.word_validator.validate_word_with_letters(word, available_letters):
+                        candidates.add(word)
+                        # If using deterministic weights, return first valid word from highest weighted model
+                        if self.model_weights[model_name] >= 0.99:  # Use 0.99 to handle floating point imprecision
+                            return {word}
+                except Exception as e:
+                    logger.warning(f"Error getting suggestion from {model_name}: {e}")
+                    continue
         
         return candidates
-        
-    def _convert_letters_to_state(self, letters: Set[str]) -> np.ndarray:
-        """Convert letters to state vector for Q-learning."""
-        state = np.zeros(26)  # One-hot encoding for each letter
-        for letter in letters:
-            index = ord(letter.lower()) - ord('a')
-            state[index] = 1
-        return state
-        
-    def _convert_action_to_word(self, action: int, available_letters: Set[str]) -> Optional[str]:
-        """Convert Q-learning action to word."""
-        # For now, just return None since we need to implement proper action-to-word conversion
-        return None
 
     def _score_candidates(self, 
                          candidates: Set[str], 
                          available_letters: Set[str]) -> List[Tuple[str, float]]:
-        """Score candidates using weighted model combinations"""
+        """Score candidate words"""
         scored_words = []
-        
         for word in candidates:
-            # Validate word before scoring
-            if not self.word_validator.validate_word_with_letters(word, available_letters):
-                continue
-                
-            # Get scores from each model
-            naive_bayes_score = self.naive_bayes.estimate_word_probability(word)
-            
-            # Combine scores using model weights
-            combined_score = (
-                self.model_weights["naive_bayes"] * naive_bayes_score
-            )
-            
-            scored_words.append((word, combined_score))
-            
+            score = 0.0
+            for model_name, model in self.models.items():
+                if hasattr(model, "get_suggestion"):
+                    _, confidence = model.get_suggestion(available_letters)
+                    score += confidence * self.model_weights[model_name]
+            scored_words.append((word, score))
         return sorted(scored_words, key=lambda x: x[1], reverse=True)
 
     def _select_best_word(self, scored_words: List[Tuple[str, float]]) -> str:
-        """Select best word from scored candidates"""
+        """Select best word from candidates"""
         return scored_words[0][0] if scored_words else ""
 
     def get_learning_stats(self) -> Dict[str, Any]:
@@ -325,3 +349,61 @@ class AIStrategy:
         # Convert list to set
         letter_set = set(available_letters)
         return self.select_word(letter_set, letter_set, 0)
+
+    def track_performance(self, model_name: str, word: str, success: bool) -> None:
+        """Track model performance"""
+        if model_name in self.models:
+            repo = getattr(self.db_manager, f"get_{model_name}_repository")()
+            if hasattr(repo, "record_performance"):
+                repo.record_performance(word, success)
+                
+            # Update model stats
+            if hasattr(self.models[model_name], "get_stats"):
+                try:
+                    # Create new stats dictionary
+                    stats = {
+                        "success_rate": 1.0 if success else 0.0,
+                        "total_decisions": 1,
+                        "successful_words": 1 if success else 0
+                    }
+                    # Update the model's get_stats method
+                    self.models[model_name].get_stats = Mock(return_value=stats)
+                    # Store the updated stats in the model itself
+                    setattr(self.models[model_name], '_stats', stats)
+                except Exception as e:
+                    logger.warning(f"Error updating stats for {model_name}: {e}")
+
+    def get_performance_stats(self) -> Dict[str, Any]:
+        """Get performance statistics for all models"""
+        stats = {}
+        for model_name, model in self.models.items():
+            if hasattr(model, "get_stats"):
+                try:
+                    # Try to get stored stats first
+                    if hasattr(model, '_stats'):
+                        stats[model_name] = getattr(model, '_stats').copy()
+                    else:
+                        # Fall back to get_stats method
+                        model_stats = model.get_stats()
+                        if isinstance(model_stats, dict):
+                            stats[model_name] = model_stats.copy()
+                        else:
+                            stats[model_name] = {
+                                "success_rate": 0.0,
+                                "total_decisions": 0,
+                                "successful_words": 0
+                            }
+                except Exception as e:
+                    logger.warning(f"Error getting stats for {model_name}: {e}")
+                    stats[model_name] = {
+                        "success_rate": 0.0,
+                        "total_decisions": 0,
+                        "successful_words": 0
+                    }
+            else:
+                stats[model_name] = {
+                    "success_rate": 0.0,
+                    "total_decisions": 0,
+                    "successful_words": 0
+                }
+        return stats

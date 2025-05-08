@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 from unittest.mock import Mock, patch
-from ai.models.q_learning import QLearning, TrainingMetrics
+from ai.models.q_learning_model import QLearningAgent as QLearning, TrainingMetrics
 from database.repositories.q_learning_repository import QLearningRepository
 from core.game_events_manager import GameEventManager
 from ai.word_analysis import WordFrequencyAnalyzer
@@ -19,7 +19,7 @@ class TestQLearning(unittest.TestCase):
         self.agent = QLearning(
             event_manager=self.event_manager,
             word_analyzer=self.word_analyzer,
-            repo_manager=self.db_manager
+            repository=self.repository
         )
     
     def test_initialization(self):

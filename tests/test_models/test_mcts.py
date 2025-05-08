@@ -34,8 +34,7 @@ class TestMCTS(unittest.TestCase):
             valid_words=self.valid_words,
             max_depth=4,
             num_simulations=20,
-            repo_manager=self.db_manager,
-            event_manager=self.event_manager
+            db_manager=self.db_manager
         )
 
     def test_mcts_returns_valid_output(self):

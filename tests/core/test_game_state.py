@@ -8,6 +8,8 @@ from core.game_events import GameEvent, EventType
 from core.game_events_manager import GameEventManager
 from engine.game_state import GameState
 from ai.ai_player import AIPlayer
+from database.manager import DatabaseManager
+from database.repository_manager import RepositoryManager
 
 class TestGameState(unittest.TestCase):
     def setUp(self):
@@ -15,7 +17,23 @@ class TestGameState(unittest.TestCase):
         Sets up the game state for each test.
         """
         self.event_manager = Mock(spec=GameEventManager)
-        self.state = GameState(self.event_manager)
+        self.db_manager = Mock(spec=DatabaseManager)
+        self.repo_manager = Mock(spec=RepositoryManager)
+        
+        # Mock repositories
+        self.word_repo = Mock()
+        self.word_repo.get_word_usage.return_value = []  # Return empty list for word usage data
+        self.category_repo = Mock()
+        self.repo_manager.get_repository.side_effect = lambda repo_type: {
+            'word': self.word_repo,
+            'category': self.category_repo
+        }.get(repo_type)
+        
+        self.state = GameState(
+            event_manager=self.event_manager,
+            db_manager=self.db_manager,
+            repo_manager=self.repo_manager
+        )
         self.state.shared_letters = ['A', 'T', 'R', 'S']
         self.state.boggle_letters = ['E', 'L', 'O', 'P', 'U', 'N']
 

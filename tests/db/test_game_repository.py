@@ -14,18 +14,16 @@ from database.repositories.game_repository import GameRepository
 
 class TestGameRepository(unittest.TestCase):
     def setUp(self):
-        """Set up a temporary database and test repository."""
+        """Set up test database and repository."""
         self.temp_db = tempfile.NamedTemporaryFile(delete=False)
         self.db_path = self.temp_db.name
         self.db_manager = DatabaseManager(self.db_path)
-        self.db_manager.create_tables()
-        
+        self.db_manager.initialize_database()  # Initialize database with schema
         self.game_repo = GameRepository(self.db_manager)
         
     def tearDown(self):
-        """Clean up the temporary database."""
-        self.temp_db.close()
-        os.unlink(self.db_path)
+        """Clean up the database connection."""
+        self.db_manager.close()
         
     def test_create_game(self):
         """Test creating a new game."""

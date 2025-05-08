@@ -1,0 +1,15 @@
+README.md
+setup.py
+ai/__init__.py
+ai/ai_player.py
+ai/category_analysis.py
+ai/word_analysis.py
+database/__init__.py
+database/manager.py
+database/repository_manager.py
+tests/test_config_loading.py
+word_game.egg-info/PKG-INFO
+word_game.egg-info/SOURCES.txt
+word_game.egg-info/dependency_links.txt
+word_game.egg-info/requires.txt
+word_game.egg-info/top_level.txt

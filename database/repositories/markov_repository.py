@@ -1,251 +1,384 @@
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional, Tuple, Any
 from datetime import datetime
 from ..manager import DatabaseManager
 from .base_repository import BaseRepository
 from collections import defaultdict
 
 class MarkovRepository(BaseRepository):
-    """Repository for managing Markov chain transitions and probabilities."""
+    """Repository for managing Markov chain transitions."""
     
-    def __init__(self, db_manager: DatabaseManager):
-        """Initialize the Markov chain repository."""
-        super().__init__(db_manager)
-        self.table_name = "markov_chain"
-        
-        # Create markov_transitions table if it doesn't exist
-        self.db.execute_query("""
-            CREATE TABLE IF NOT EXISTS markov_transitions (
-                current_state TEXT NOT NULL,
-                next_state TEXT NOT NULL,
-                count INTEGER NOT NULL DEFAULT 1,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                PRIMARY KEY (current_state, next_state)
-            )
-        """)
-        
-    def record_transition(self, current_state: str, next_state: str, count: int = 1) -> None:
-        """
-        Record a transition between states and update its count.
+    def __init__(self, db_manager: DatabaseManager, game_id: Optional[int] = None):
+        """Initialize the Markov chain repository.
         
         Args:
-            current_state: The current state (e.g., current letter sequence)
-            next_state: The next state (e.g., next letter)
-            count: Number of times this transition occurred (default: 1)
+            db_manager: Database manager instance
+            game_id: Optional game ID. If not provided, must be set before using methods that require it.
         """
-        self.db.execute_query("""
-            INSERT INTO markov_transitions (current_state, next_state, count)
-            VALUES (?, ?, ?)
-            ON CONFLICT(current_state, next_state) DO UPDATE SET
+        super().__init__(db_manager, 'markov_transitions')
+        self.game_id = game_id
+        
+    def set_game_id(self, game_id: int) -> None:
+        """Set the game ID for this repository instance."""
+        self.game_id = game_id
+        
+    def _check_game_id(self) -> None:
+        """Check if game_id is set, raise RuntimeError if not."""
+        if self.game_id is None:
+            raise RuntimeError("game_id must be set before using this method")
+        
+    def record_transition(self, current_state: str, next_state: str, count: int = 1, visit_count: int = 1) -> None:
+        """
+        Record a state transition.
+        
+        Args:
+            current_state: Current state
+            next_state: Next state
+            count: Number of times this transition occurred (default: 1)
+            visit_count: Number of times this state has been visited (default: 1)
+        """
+        self._check_game_id()
+        self.db_manager.execute_query("""
+            INSERT INTO markov_transitions (game_id, current_state, next_state, count, total_transitions, visit_count)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(game_id, current_state, next_state) DO UPDATE SET
                 count = count + ?,
+                total_transitions = total_transitions + ?,
+                visit_count = visit_count + ?,
                 updated_at = CURRENT_TIMESTAMP
-        """, (current_state, next_state, count, count))
+        """, (self.game_id, current_state, next_state, count, count, visit_count, count, count, visit_count))
         
     def get_transition_probability(self, current_state: str, next_state: str) -> float:
         """
         Get the probability of transitioning from current_state to next_state.
         
         Args:
-            current_state: The current state
-            next_state: The next state
+            current_state: Current state
+            next_state: Next state
             
         Returns:
-            Probability of the transition (0.0 to 1.0)
+            Probability of the transition
         """
-        result = self.db.execute_query("""
+        self._check_game_id()
+        result = self.db_manager.execute_query("""
             SELECT 
-                t.count as transition_count,
-                SUM(t2.count) as total_count
-            FROM markov_transitions t
-            LEFT JOIN markov_transitions t2 ON t.current_state = t2.current_state
-            WHERE t.current_state = ? AND t.next_state = ?
-            GROUP BY t.current_state, t.next_state, t.count
-        """, (current_state, next_state))
+                CAST(count AS FLOAT) / (
+                    SELECT SUM(count) 
+                    FROM markov_transitions 
+                    WHERE game_id = ? AND current_state = ?
+                ) as probability
+            FROM markov_transitions
+            WHERE game_id = ? AND current_state = ? AND next_state = ?
+        """, (self.game_id, current_state, self.game_id, current_state, next_state))
         
-        if not result:
-            return 0.0
-            
-        transition_count = result[0]['transition_count']
-        total_count = result[0]['total_count']
+        return result[0]['probability'] if result else 0.0
         
-        return transition_count / total_count if total_count > 0 else 0.0
-        
-    def get_next_states(self, current_state: str, limit: int = 5) -> List[Dict]:
+    def get_next_states(self, current_state: str, limit: Optional[int] = None) -> List[Dict[str, Any]]:
         """
-        Get the most likely next states from the current state.
+        Get possible next states and their probabilities.
         
         Args:
-            current_state: The current state
+            current_state: Current state
             limit: Maximum number of next states to return
             
         Returns:
-            List of dictionaries containing next_state and probability
+            List of dictionaries containing next states and probabilities
         """
-        return self.db.execute_query("""
-            SELECT 
-                next_state,
-                count * 1.0 / SUM(count) OVER (PARTITION BY current_state) as probability
-            FROM markov_transitions
-            WHERE current_state = ?
-            ORDER BY probability DESC
-            LIMIT ?
-        """, (current_state, limit))
-        
-    def get_state_stats(self, state: str) -> Dict:
-        """
-        Get statistics for a given state.
-        
-        Args:
-            state: The state to get statistics for
-            
-        Returns:
-            Dictionary containing:
-                - total_transitions: Total number of transitions from this state
-                - unique_next_states: Number of unique next states
-                - most_common_next: Most common next state
-                - entropy: Measure of uncertainty in transitions
-        """
-        result = self.db.execute_query("""
-            WITH state_stats AS (
-                SELECT 
-                    COUNT(*) as total_transitions,
-                    COUNT(DISTINCT next_state) as unique_next_states,
-                    next_state as most_common_next,
-                    SUM(count) as next_state_count
+        self._check_game_id()
+        query = """
+            WITH total AS (
+                SELECT SUM(count) as total
                 FROM markov_transitions
-                WHERE current_state = ?
-                GROUP BY next_state
-                ORDER BY next_state_count DESC
-                LIMIT 1
+                WHERE game_id = ? AND current_state = ?
             )
             SELECT 
-                SUM(total_transitions) as total_transitions,
-                MAX(unique_next_states) as unique_next_states,
-                most_common_next,
-                -SUM(
-                    (count * 1.0 / SUM(count) OVER ()) * 
-                    LOG(2, count * 1.0 / SUM(count) OVER ())
-                ) as entropy
+                next_state,
+                count,
+                CAST(count AS FLOAT) / (SELECT total FROM total) as probability,
+                visit_count
             FROM markov_transitions
-            LEFT JOIN state_stats ON 1=1
-            WHERE current_state = ?
-            GROUP BY most_common_next
-        """, (state, state))
-        
-        return result[0] if result else {
-            'total_transitions': 0,
-            'unique_next_states': 0,
-            'most_common_next': None,
-            'entropy': 0.0
-        }
-        
-    def bulk_update_transitions(self, transitions: List[Tuple[str, str, int]]) -> None:
+            WHERE game_id = ? AND current_state = ?
+            ORDER BY count DESC
         """
-        Update multiple transitions at once.
+        params = [self.game_id, current_state, self.game_id, current_state]
+        
+        if limit is not None:
+            query += " LIMIT ?"
+            params.append(limit)
+            
+        return self.db_manager.execute_query(query, tuple(params))
+        
+    def get_state_stats(self, state: str) -> Dict[str, Any]:
+        """
+        Get statistics for a state.
         
         Args:
-            transitions: List of (current_state, next_state, count) tuples
+            state: State to get statistics for
+            
+        Returns:
+            Dictionary containing state statistics
         """
-        self.db.execute_many("""
-            INSERT INTO markov_transitions (current_state, next_state, count)
-            VALUES (?, ?, ?)
-            ON CONFLICT(current_state, next_state) DO UPDATE SET
-                count = count + ?,
-                updated_at = CURRENT_TIMESTAMP
-        """, [(c, n, cnt, cnt) for c, n, cnt in transitions])
+        self._check_game_id()
+        result = self.db_manager.execute_query("""
+            WITH stats AS (
+                SELECT 
+                    COUNT(*) as transition_count,
+                    SUM(count) as total_transitions,
+                    COUNT(DISTINCT next_state) as unique_next_states,
+                    AVG(CAST(count AS FLOAT) / NULLIF(total_transitions, 0)) as avg_probability,
+                    MAX(CAST(count AS FLOAT) / NULLIF(total_transitions, 0)) as max_probability,
+                    SUM(visit_count) as total_visits,
+                    MIN(updated_at) as first_seen,
+                    MAX(updated_at) as last_seen
+                FROM markov_transitions
+                WHERE game_id = ? AND current_state = ?
+            ),
+            most_common AS (
+                SELECT next_state
+                FROM markov_transitions
+                WHERE game_id = ? AND current_state = ?
+                ORDER BY count DESC
+                LIMIT 1
+            ),
+            entropy AS (
+                SELECT 
+                    -SUM(
+                        (CAST(count AS FLOAT) / total) * 
+                        LOG(CAST(count AS FLOAT) / total)
+                    ) as entropy
+                FROM (
+                    SELECT 
+                        count,
+                        SUM(count) OVER () as total
+                    FROM markov_transitions
+                    WHERE game_id = ? AND current_state = ?
+                )
+            )
+            SELECT 
+                stats.*,
+                most_common.next_state as most_common_next,
+                entropy.entropy
+            FROM stats
+            LEFT JOIN most_common
+            LEFT JOIN entropy
+        """, (self.game_id, state, self.game_id, state, self.game_id, state))
         
-    def get_chain_stats(self) -> Dict:
+        return result[0] if result else None
+        
+    def get_chain_stats(self) -> Dict[str, Any]:
         """
-        Get overall statistics about the Markov chain.
+        Get overall statistics for the Markov chain.
         
         Returns:
-            Dictionary containing:
-                - total_states: Total number of unique states
-                - total_transitions: Total number of transitions
-                - average_entropy: Average entropy across all states
-                - most_uncertain_state: State with highest entropy
-                - most_certain_state: State with lowest entropy
+            Dictionary containing chain statistics
         """
-        result = self.db.execute_query("""
+        self._check_game_id()
+        result = self.db_manager.execute_query("""
             WITH state_entropy AS (
                 SELECT 
                     current_state,
                     -SUM(
-                        (count * 1.0 / SUM(count) OVER (PARTITION BY current_state)) * 
-                        LOG(2, count * 1.0 / SUM(count) OVER (PARTITION BY current_state))
+                        (CAST(count AS FLOAT) / total) * 
+                        LOG(CAST(count AS FLOAT) / total)
                     ) as entropy
-                FROM markov_transitions
+                FROM (
+                    SELECT 
+                        current_state,
+                        count,
+                        SUM(count) OVER (PARTITION BY current_state) as total
+                    FROM markov_transitions
+                    WHERE game_id = ?
+                )
                 GROUP BY current_state
+            ),
+            chain_stats AS (
+                SELECT 
+                    COUNT(DISTINCT current_state) as total_states,
+                    SUM(count) as total_transitions,
+                    COUNT(*) as total_counts,
+                    AVG(CAST(count AS FLOAT) / NULLIF(total_transitions, 0)) as avg_probability,
+                    MAX(CAST(count AS FLOAT) / NULLIF(total_transitions, 0)) as max_probability,
+                    SUM(visit_count) as total_visits,
+                    MIN(updated_at) as first_seen,
+                    MAX(updated_at) as last_seen
+                FROM markov_transitions
+                WHERE game_id = ?
+            ),
+            most_uncertain AS (
+                SELECT current_state as most_uncertain_state
+                FROM state_entropy
+                ORDER BY entropy DESC
+                LIMIT 1
+            ),
+            most_certain AS (
+                SELECT current_state as most_certain_state
+                FROM state_entropy
+                WHERE entropy > 0
+                ORDER BY entropy ASC
+                LIMIT 1
             )
             SELECT 
-                COUNT(DISTINCT current_state) as total_states,
-                SUM(count) as total_transitions,
-                AVG(entropy) as average_entropy,
-                (SELECT current_state FROM state_entropy ORDER BY entropy DESC LIMIT 1) as most_uncertain_state,
-                (SELECT current_state FROM state_entropy ORDER BY entropy ASC LIMIT 1) as most_certain_state
-            FROM markov_transitions
-            LEFT JOIN state_entropy ON markov_transitions.current_state = state_entropy.current_state
-        """)
+                chain_stats.*,
+                most_uncertain.most_uncertain_state,
+                most_certain.most_certain_state,
+                (SELECT AVG(entropy) FROM state_entropy) as avg_entropy
+            FROM chain_stats
+            LEFT JOIN most_uncertain
+            LEFT JOIN most_certain
+        """, (self.game_id, self.game_id))
         
-        return result[0] if result else {
-            'total_states': 0,
-            'total_transitions': 0,
-            'average_entropy': 0.0,
-            'most_uncertain_state': None,
-            'most_certain_state': None
-        }
+        return result[0] if result else None
+        
+    def bulk_update_transitions(self, transitions: List[Tuple[str, str, int]]) -> None:
+        """
+        Bulk update transition counts.
+        
+        Args:
+            transitions: List of (current_state, next_state, count) tuples
+        """
+        self._check_game_id()
+        params = [(self.game_id, current_state, next_state, count, count, count, count, count)
+                 for current_state, next_state, count in transitions]
+        
+        self.db_manager.execute_many("""
+            INSERT INTO markov_transitions (game_id, current_state, next_state, count, total_transitions, visit_count)
+            VALUES (?, ?, ?, ?, ?, 1)
+            ON CONFLICT(game_id, current_state, next_state) DO UPDATE SET
+                count = count + ?,
+                total_transitions = total_transitions + ?,
+                visit_count = visit_count + 1,
+                updated_at = CURRENT_TIMESTAMP
+        """, params)
         
     def cleanup_old_transitions(self, days: int = 30) -> int:
         """
-        Remove transitions that haven't been updated in the specified number of days.
+        Remove transitions older than the specified number of days.
         
         Args:
-            days: Number of days after which to remove transitions
+            days: Number of days to keep transitions for
             
         Returns:
             Number of transitions removed
         """
-        # First get the count of rows that will be deleted
-        result = self.db.execute_query("""
-            SELECT COUNT(*) as count
-            FROM markov_transitions
-            WHERE updated_at < datetime('now', ?)
-        """, (f"-{days} days",))
-        count = result[0]['count'] if result else 0
+        self._check_game_id()
+        result = self.db_manager.execute_query("""
+            WITH deleted AS (
+                DELETE FROM markov_transitions
+                WHERE game_id = ? AND updated_at < datetime('now', ?)
+                RETURNING *
+            )
+            SELECT COUNT(*) as count FROM deleted
+        """, (self.game_id, f'-{days} days'))
         
-        # Then delete the rows
-        self.db.execute_query("""
-            DELETE FROM markov_transitions
-            WHERE updated_at < datetime('now', ?)
-        """, (f"-{days} days",))
+        return result[0]['count'] if result else 0
         
-        return count
-
     def get_transitions(self) -> Dict[str, Dict[str, float]]:
         """
-        Get all transitions from the repository.
+        Get all transitions and their probabilities.
         
         Returns:
-            Dictionary mapping current states to dictionaries of next states and their probabilities
+            Dictionary mapping current states to dictionaries of next states and probabilities
         """
-        result = self.db.execute_query("""
-            WITH transition_counts AS (
-                SELECT 
-                    current_state,
-                    next_state,
-                    count,
-                    SUM(count) OVER (PARTITION BY current_state) as total_count
+        self._check_game_id()
+        transitions = defaultdict(dict)
+        
+        results = self.db_manager.execute_query("""
+            WITH totals AS (
+                SELECT current_state, SUM(count) as total
                 FROM markov_transitions
+                WHERE game_id = ?
+                GROUP BY current_state
             )
             SELECT 
-                current_state,
-                next_state,
-                count * 1.0 / total_count as probability
-            FROM transition_counts
-        """)
+                m.current_state,
+                m.next_state,
+                CAST(m.count AS FLOAT) / t.total as probability
+            FROM markov_transitions m
+            JOIN totals t ON m.current_state = t.current_state
+            WHERE m.game_id = ?
+        """, (self.game_id, self.game_id))
         
-        transitions = defaultdict(dict)
-        for row in result:
+        for row in results:
             transitions[row['current_state']][row['next_state']] = row['probability']
             
-        return dict(transitions) 
+        return dict(transitions)
+        
+    def bulk_record_transitions(self, transitions: dict) -> None:
+        """
+        Record multiple transitions at once.
+        
+        Args:
+            transitions: Dictionary mapping current states to dictionaries of next states and counts
+        """
+        self._check_game_id()
+        params = []
+        for current_state, next_states in transitions.items():
+            for next_state, count in next_states.items():
+                params.append((self.game_id, current_state, next_state, count, count, 1))
+                
+        self.db_manager.execute_many("""
+            INSERT INTO markov_transitions (game_id, current_state, next_state, count, total_transitions, visit_count)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(game_id, current_state, next_state) DO UPDATE SET
+                count = count + excluded.count,
+                total_transitions = total_transitions + excluded.total_transitions,
+                visit_count = visit_count + excluded.visit_count,
+                updated_at = CURRENT_TIMESTAMP
+        """, params)
+        
+    def get_state_probabilities(self, state: str) -> dict:
+        """
+        Get transition probabilities for a state.
+        
+        Args:
+            state: State to get probabilities for
+            
+        Returns:
+            Dictionary mapping next states to probabilities
+        """
+        self._check_game_id()
+        results = self.db_manager.execute_query("""
+            WITH total AS (
+                SELECT SUM(count) as total
+                FROM markov_transitions
+                WHERE game_id = ? AND current_state = ?
+            )
+            SELECT 
+                next_state,
+                CAST(count AS FLOAT) / (SELECT total FROM total) as probability
+            FROM markov_transitions
+            WHERE game_id = ? AND current_state = ?
+        """, (self.game_id, state, self.game_id, state))
+        
+        return {row['next_state']: row['probability'] for row in results}
+        
+    def save_transitions(self, transitions: Dict[str, Dict[str, float]]) -> None:
+        """
+        Save the current state of the Markov chain.
+        
+        Args:
+            transitions: Dictionary mapping current states to dictionaries of next states and their probabilities
+                {current_state: {next_state: probability}}
+        """
+        self._check_game_id()
+        
+        # Convert probabilities to counts (multiply by 1000 to preserve decimal places)
+        transition_counts = []
+        for current_state, next_states in transitions.items():
+            total_count = sum(int(prob * 1000) for prob in next_states.values())
+            for next_state, prob in next_states.items():
+                count = int(prob * 1000)  # Convert probability to count
+                transition_counts.append((current_state, next_state, count, total_count))
+        
+        # Bulk insert/update transitions
+        self.db_manager.execute_many("""
+            INSERT INTO markov_transitions (
+                game_id, current_state, next_state, count, 
+                total_transitions, visit_count, created_at, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            ON CONFLICT(game_id, current_state, next_state) DO UPDATE SET
+                count = ?,
+                total_transitions = ?,
+                updated_at = CURRENT_TIMESTAMP
+        """, [(self.game_id, curr, next_, count, total, count, total) 
+              for curr, next_, count, total in transition_counts]) 

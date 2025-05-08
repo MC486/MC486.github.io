@@ -2,7 +2,7 @@ from typing import Dict, Set, Optional, List, Any
 import logging
 from core.game_events import GameEvent, EventType
 from core.game_events_manager import GameEventManager
-from ai.word_analysis import WordFrequencyAnalyzer
+from database.manager import DatabaseManager
 from ai.strategy.ai_strategy import AIStrategy
 
 logger = logging.getLogger(__name__)
@@ -14,27 +14,26 @@ class AIPlayer:
     """
     def __init__(self, 
                  event_manager: GameEventManager,
-                 valid_words: Set[str],
-                 difficulty: str = "medium"):
+                 db_manager: DatabaseManager,
+                 strategy: Optional[AIStrategy] = None):
         self.event_manager = event_manager
-        self.valid_words = valid_words
-        self.difficulty = difficulty
-        
-        # Initialize components
-        self.word_analyzer = WordFrequencyAnalyzer(event_manager)
-        self.strategy = AIStrategy(
-            event_manager,
-            self.word_analyzer,
-            valid_words,
-            difficulty
+        self.db_manager = db_manager
+        self.strategy = strategy or AIStrategy(
+            event_manager=event_manager,
+            db_manager=db_manager,
+            word_repo=db_manager.get_word_repository(),
+            category_repo=db_manager.get_category_repository()
         )
         
         # Game state tracking
-        self.current_shared_letters: Set[str] = set()
-        self.current_private_letters: Set[str] = set()
-        self.turn_number: int = 0
         self.score: int = 0
-        self.used_words: Set[str] = set()
+        self.word_history: List[str] = []
+        self.valid_words: List[str] = []  # Track valid words separately
+        self.turn_number: int = 0
+        self.difficulty: str = "medium"
+        
+        # Get repositories
+        self.word_repo = db_manager.get_word_usage_repository()
         
         self._setup_event_subscriptions()
 
@@ -42,65 +41,112 @@ class AIPlayer:
         """Setup event subscriptions for game interaction"""
         self.event_manager.subscribe(EventType.GAME_START, self._handle_game_start)
         self.event_manager.subscribe(EventType.TURN_START, self._handle_turn_start)
-        self.event_manager.subscribe(EventType.WORD_SUBMITTED, self._handle_word_submission)
-        self.event_manager.subscribe(EventType.GAME_END, self._handle_game_end)
+        self.event_manager.subscribe(EventType.WORD_VALIDATED, self._handle_word_validation)
 
-    def make_move(self) -> str:
+    def make_move(self, available_letters: List[str]) -> str:
         """
-        Make a move by selecting a word based on current game state.
+        Make a move by selecting a word based on available letters.
         
+        Args:
+            available_letters: List of available letters to form words
+            
         Returns:
             Selected word
         """
-        self.event_manager.emit(GameEvent(
-            type=EventType.AI_TURN_START,
-            data={
-                "turn_number": self.turn_number,
-                "score": self.score
-            }
-        ))
-        
+        if not available_letters:
+            return ''
+            
         # Get word from strategy
-        selected_word = self.strategy.select_word(
-            self.current_shared_letters,
-            self.current_private_letters,
-            self.turn_number
-        )
+        word = self.strategy.select_word(set(available_letters), set(), self.turn_number)
         
-        if selected_word:
-            self.used_words.add(selected_word)
+        # Avoid duplicate words
+        while word and word in self.word_history:
+            word = self.strategy.select_word(set(available_letters), set(), self.turn_number)
             
-            self.event_manager.emit(GameEvent(
-                type=EventType.AI_WORD_SELECTED,
-                data={
-                    "word": selected_word,
-                    "turn_number": self.turn_number
-                },
-                debug_data={
-                    "used_words_count": len(self.used_words),
-                    "available_letters": list(self.current_shared_letters | self.current_private_letters)
-                }
-            ))
+        if word:
+            self.word_repo.record_word_usage(word)
             
-        return selected_word
+        return word
 
     def _handle_game_start(self, event: GameEvent) -> None:
         """Handle game start event"""
         self.difficulty = event.data.get("difficulty", self.difficulty)
         self.score = 0
         self.turn_number = 0
-        self.used_words.clear()
-        
-        # Initialize word analyzer with game dictionary
-        initial_words = event.data.get("valid_words", set())
-        if initial_words:
-            self.word_analyzer.analyze_word_list(list(initial_words))
+        self.word_history.clear()
+        self.valid_words.clear()
+        self.strategy.reset()
+        self.word_repo.cleanup_old_entries()
 
     def _handle_turn_start(self, event: GameEvent) -> None:
         """Handle turn start event"""
-        self.turn_number = event.data.get("turn_number", self.turn_number + 1)
-        self.current_shared_letters = set(event.data.get("shared_letters", []))
-        self.current_private_letters = set(event.data.get("private_letters", []))
+        logger.debug(f"Handling turn start event: {event.data}")
+        if event.data.get("player") == "ai":
+            logger.debug("AI player's turn")
+            self.turn_number = event.data.get("turn_number", self.turn_number + 1)
+            available_letters = event.data.get("available_letters", [])
+            logger.debug(f"Available letters: {available_letters}")
+            word = self.make_move(available_letters)
+            logger.debug(f"Selected word: {word}")
+            self.event_manager.emit(GameEvent(
+                type=EventType.WORD_SUBMITTED,
+                data={"word": word, "player": "ai"}
+            ))
+
+    def _handle_word_validation(self, event: GameEvent) -> None:
+        """Handle word validation event"""
+        if event.data.get("player") == "ai":
+            word = event.data.get("word", "")
+            if word:  # Add word to history regardless of validity
+                self.word_history.append(word)
+            if event.data.get("is_valid", False):
+                self.score += event.data.get("score", 0)
+                self.valid_words.append(word)
+            self.word_repo.record_word_usage(word)
+
+    def get_performance_stats(self) -> Dict[str, Any]:
+        """Get AI player performance statistics"""
+        stats = {
+            "total_words": len(self.word_history),
+            "valid_words": len(self.valid_words),
+            "total_score": self.score
+        }
+        stats.update(self.word_repo.get_word_stats())
+        return stats
+
+    def _get_event_handler(self, event_type: EventType):
+        """Get the appropriate event handler for the given event type"""
+        handlers = {
+            EventType.GAME_START: self._handle_game_start,
+            EventType.TURN_START: self._handle_turn_start,
+            EventType.WORD_VALIDATED: self._handle_word_validation
+        }
+        return handlers.get(event_type)
+
+    def _handle_game_start(self, event: GameEvent) -> None:
+        """Handle game start event"""
+        self.difficulty = event.data.get("difficulty", self.difficulty)
+        self.score = 0
+        self.turn_number = 0
+        self.word_history.clear()
+        self.valid_words.clear()
+        self.strategy.reset()
+        self.word_repo.cleanup_old_entries()
+
+    def _handle_turn_start(self, event: GameEvent) -> None:
+        """Handle turn start event"""
+        logger.debug(f"Handling turn start event: {event.data}")
+        if event.data.get("player") == "ai":
+            logger.debug("AI player's turn")
+            self.turn_number = event.data.get("turn_number", self.turn_number + 1)
+            available_letters = event.data.get("available_letters", [])
+            logger.debug(f"Available letters: {available_letters}")
+            word = self.make_move(available_letters)
+            logger.debug(f"Selected word: {word}")
+            self.event_manager.emit(GameEvent(
+                type=EventType.WORD_SUBMITTED,
+                data={"word": word, "player": "ai"}
+            ))
 
     def _handle_word_submission(self, event: GameEvent) -> None:
         """Handle word submission event"""
@@ -131,7 +177,7 @@ class AIPlayer:
         return {
             "score": self.score,
             "turns_played": self.turn_number,
-            "words_used": len(self.used_words),
+            "words_used": len(self.word_history),
             "difficulty": self.difficulty,
             "strategy_stats": self.strategy.get_stats()
         }

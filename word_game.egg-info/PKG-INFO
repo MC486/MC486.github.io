@@ -1,0 +1,10 @@
+Metadata-Version: 2.4
+Name: word-game
+Version: 0.1
+Requires-Dist: nltk>=3.8.1
+Requires-Dist: wordfreq>=3.0.3
+Requires-Dist: pyyaml>=6.0.1
+Requires-Dist: pytest>=7.4.3
+Requires-Dist: scikit-learn>=1.4.0
+Requires-Dist: tensorflow>=2.15.0
+Dynamic: requires-dist

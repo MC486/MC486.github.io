@@ -13,22 +13,21 @@ from database.repositories.markov_repository import MarkovRepository
 
 class TestMarkovRepository(unittest.TestCase):
     def setUp(self):
-        """Set up a temporary database and repository."""
+        """Set up test database and repository."""
         self.temp_db = tempfile.NamedTemporaryFile(delete=False)
         self.db_path = self.temp_db.name
         self.db_manager = DatabaseManager(self.db_path)
-        self.db_manager.create_tables()
-        self.repository = MarkovRepository(self.db_manager)
+        self.db_manager.initialize_database()  # Initialize database with schema
+        self.markov_repo = MarkovRepository(self.db_manager)
         
     def tearDown(self):
-        """Clean up the temporary database."""
-        self.temp_db.close()
-        os.unlink(self.db_path)
+        """Clean up the database connection."""
+        self.db_manager.close()
         
     def test_record_transition(self):
         """Test recording a transition."""
         # Record a transition
-        self.repository.record_transition("abc", "d")
+        self.markov_repo.record_transition("abc", "d")
         
         # Verify the transition was recorded
         result = self.db_manager.execute_query("""
@@ -42,12 +41,12 @@ class TestMarkovRepository(unittest.TestCase):
     def test_get_transition_probability(self):
         """Test getting transition probability."""
         # Record multiple transitions
-        self.repository.record_transition("abc", "d", 3)
-        self.repository.record_transition("abc", "e", 7)
+        self.markov_repo.record_transition("abc", "d", 3)
+        self.markov_repo.record_transition("abc", "e", 7)
         
         # Test probability calculation
-        prob_d = self.repository.get_transition_probability("abc", "d")
-        prob_e = self.repository.get_transition_probability("abc", "e")
+        prob_d = self.markov_repo.get_transition_probability("abc", "d")
+        prob_e = self.markov_repo.get_transition_probability("abc", "e")
         
         self.assertEqual(prob_d, 0.3)  # 3/10
         self.assertEqual(prob_e, 0.7)  # 7/10
@@ -55,12 +54,12 @@ class TestMarkovRepository(unittest.TestCase):
     def test_get_next_states(self):
         """Test getting next states."""
         # Record multiple transitions
-        self.repository.record_transition("abc", "d", 3)
-        self.repository.record_transition("abc", "e", 7)
-        self.repository.record_transition("abc", "f", 5)
+        self.markov_repo.record_transition("abc", "d", 3)
+        self.markov_repo.record_transition("abc", "e", 7)
+        self.markov_repo.record_transition("abc", "f", 5)
         
         # Get next states
-        next_states = self.repository.get_next_states("abc", limit=2)
+        next_states = self.markov_repo.get_next_states("abc", limit=2)
         
         self.assertEqual(len(next_states), 2)
         self.assertEqual(next_states[0]['next_state'], "e")  # Highest probability
@@ -69,12 +68,12 @@ class TestMarkovRepository(unittest.TestCase):
     def test_get_state_stats(self):
         """Test getting state statistics."""
         # Record multiple transitions
-        self.repository.record_transition("abc", "d", 3)
-        self.repository.record_transition("abc", "e", 7)
-        self.repository.record_transition("abc", "f", 5)
+        self.markov_repo.record_transition("abc", "d", 3)
+        self.markov_repo.record_transition("abc", "e", 7)
+        self.markov_repo.record_transition("abc", "f", 5)
         
         # Get stats
-        stats = self.repository.get_state_stats("abc")
+        stats = self.markov_repo.get_state_stats("abc")
         
         self.assertEqual(stats['total_transitions'], 15)
         self.assertEqual(stats['unique_next_states'], 3)
@@ -91,7 +90,7 @@ class TestMarkovRepository(unittest.TestCase):
         ]
         
         # Bulk update
-        self.repository.bulk_update_transitions(transitions)
+        self.markov_repo.bulk_update_transitions(transitions)
         
         # Verify updates
         result = self.db_manager.execute_query("""
@@ -108,12 +107,12 @@ class TestMarkovRepository(unittest.TestCase):
     def test_get_chain_stats(self):
         """Test getting chain statistics."""
         # Record transitions
-        self.repository.record_transition("abc", "d", 3)
-        self.repository.record_transition("abc", "e", 7)
-        self.repository.record_transition("def", "g", 5)
+        self.markov_repo.record_transition("abc", "d", 3)
+        self.markov_repo.record_transition("abc", "e", 7)
+        self.markov_repo.record_transition("def", "g", 5)
         
         # Get stats
-        stats = self.repository.get_chain_stats()
+        stats = self.markov_repo.get_chain_stats()
         
         self.assertEqual(stats['total_states'], 2)
         self.assertEqual(stats['total_transitions'], 15)
@@ -124,7 +123,7 @@ class TestMarkovRepository(unittest.TestCase):
     def test_cleanup_old_transitions(self):
         """Test cleaning up old transitions."""
         # Record a transition
-        self.repository.record_transition("abc", "d")
+        self.markov_repo.record_transition("abc", "d")
         
         # Force the updated_at to be old
         self.db_manager.execute_query("""
@@ -133,7 +132,7 @@ class TestMarkovRepository(unittest.TestCase):
         """)
         
         # Cleanup
-        removed = self.repository.cleanup_old_transitions(days=30)
+        removed = self.markov_repo.cleanup_old_transitions(days=30)
         
         self.assertEqual(removed, 1)
         

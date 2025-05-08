@@ -130,3 +130,6 @@ class GameEventManager:
         if event_type is None:
             return self.event_history.copy()
         return [e for e in self.event_history if e.type == event_type]
+
+# Create singleton instance
+game_events_manager = GameEventManager()

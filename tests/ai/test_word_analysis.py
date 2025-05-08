@@ -1,15 +1,55 @@
 import unittest
 from unittest.mock import Mock, patch
-from core.game_events import GameEvent, EventType, GameEventManager
+from core.game_events import GameEvent, EventType
+from core.game_events_manager import game_events_manager
 from ai.word_analysis import WordFrequencyAnalyzer
 from database.manager import DatabaseManager
+from database.repositories.word_repository import WordRepository
+from database.repositories.category_repository import CategoryRepository
+from core.validation.word_validator import WordValidator
 
 class TestWordFrequencyAnalyzer(unittest.TestCase):
     def setUp(self):
         """Setup test environment before each test"""
-        self.event_manager = Mock(spec=GameEventManager)
+        # Create mock dependencies
         self.db_manager = Mock(spec=DatabaseManager)
-        self.analyzer = WordFrequencyAnalyzer(self.db_manager)
+        self.word_repo = Mock(spec=WordRepository)
+        self.category_repo = Mock(spec=CategoryRepository)
+        self.word_validator = Mock(spec=WordValidator)
+        
+        # Set up required mock methods
+        self.word_repo.get_word_usage = Mock(return_value=[])
+        self.word_repo.get_word_stats = Mock(return_value={})
+        self.word_repo.get_top_words = Mock(return_value=[])
+        self.word_repo.get_rare_words = Mock(return_value=[])
+        self.word_repo.get_words_by_length = Mock(return_value=[])
+        self.word_repo.get_words_without_category = Mock(return_value=[])
+        self.word_repo.search_words = Mock(return_value=[])
+        self.word_repo.get_by_word = Mock(return_value=None)
+        self.word_repo.get_by_category = Mock(return_value=[])
+        self.word_repo.get_by_frequency_range = Mock(return_value=[])
+        self.word_repo.increment_frequency = Mock()
+        self.word_repo.record_word_usage = Mock()
+        self.word_repo.bulk_update_frequency = Mock()
+        
+        self.category_repo.get_category_by_name = Mock(return_value=None)
+        self.category_repo.update_category = Mock()
+        
+        self.word_validator.is_valid_word = Mock(return_value=True)
+        
+        # Create WordFrequencyAnalyzer instance
+        self.analyzer = WordFrequencyAnalyzer(
+            db_manager=self.db_manager,
+            word_repo=self.word_repo,
+            category_repo=self.category_repo
+        )
+        
+        # Override the word_validator with our mock
+        self.analyzer.word_validator = self.word_validator
+        
+        # Mock repository methods
+        self.word_repo.get_word_usage.return_value = []
+        self.category_repo.get_categories.return_value = []
         
         # Mock database methods
         self.db_manager.execute_query.return_value = []
