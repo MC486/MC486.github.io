@@ -12,13 +12,23 @@ class MCTSRepository(BaseRepository):
         self.db_manager = db_manager
         
     def get_state_actions(self, state):
-        """Get all actions and their statistics for a given state."""
+        """Get all actions and their statistics for a given state.
+
+        Returns a dict keyed by action: ``{action: {reward, visit_count}}``.
+        """
         query = """
             SELECT action, avg_reward, visit_count
             FROM mcts_actions
             WHERE state = ?
         """
-        return self.db_manager.execute_query(query, (state,))
+        rows = self.db_manager.execute_query(query, (state,))
+        return {
+            row['action']: {
+                'reward': row['avg_reward'],
+                'visit_count': row['visit_count']
+            }
+            for row in rows
+        }
         
     def get_best_action(self, state):
         """Get the best action for a given state based on average reward."""
@@ -64,7 +74,14 @@ class MCTSRepository(BaseRepository):
         )
         
     def cleanup_old_entries(self, max_age_days=30):
-        """Remove old entries from the database."""
+        """Remove old entries from the database. Returns the number removed."""
+        count = self.db_manager.get_scalar(
+            """
+            SELECT COUNT(*) FROM mcts_states
+            WHERE updated_at < datetime('now', ?)
+            """,
+            (f"-{max_age_days} days",)
+        ) or 0
         self.db_manager.execute(
             """
             DELETE FROM mcts_states
@@ -72,6 +89,7 @@ class MCTSRepository(BaseRepository):
             """,
             (f"-{max_age_days} days",)
         )
+        return count
         
     def get_learning_stats(self):
         """Get statistics about the learning process."""
@@ -80,10 +98,18 @@ class MCTSRepository(BaseRepository):
                 COUNT(DISTINCT state) as total_states,
                 COUNT(DISTINCT action) as total_actions,
                 AVG(visit_count) as avg_visits,
-                MAX(avg_reward) as max_reward
+                MAX(avg_reward) as max_reward,
+                AVG(avg_reward) as average_reward
             FROM mcts_actions
         """
-        return self.db_manager.execute_query(query)[0]
+        stats = self.db_manager.execute_query(query)[0]
+        most_visited = self.db_manager.execute_query("""
+            SELECT state FROM mcts_states
+            ORDER BY visit_count DESC
+            LIMIT 1
+        """)
+        stats['most_visited_state'] = most_visited[0]['state'] if most_visited else None
+        return stats
 
     def get_state_action_stats(self, state: str, action: str) -> Dict:
         """
@@ -100,8 +126,8 @@ class MCTSRepository(BaseRepository):
                 - last_updated: Last update timestamp
         """
         result = self.db.execute_query("""
-            SELECT reward, visit_count, updated_at
-            FROM mcts_simulations
+            SELECT avg_reward, visit_count, updated_at
+            FROM mcts_actions
             WHERE state = ? AND action = ?
         """, (state, action))
         
@@ -113,7 +139,7 @@ class MCTSRepository(BaseRepository):
             }
             
         return {
-            'reward': result[0]['reward'],
+            'reward': result[0]['avg_reward'],
             'visit_count': result[0]['visit_count'],
             'last_updated': result[0]['updated_at']
         } 

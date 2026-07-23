@@ -10,6 +10,7 @@ sys.path.insert(0, project_root)
 
 from database.manager import DatabaseManager
 from database.repositories.markov_repository import MarkovRepository
+from database.repositories.game_repository import GameRepository
 
 class TestMarkovRepository(unittest.TestCase):
     def setUp(self):
@@ -18,7 +19,9 @@ class TestMarkovRepository(unittest.TestCase):
         self.db_path = self.temp_db.name
         self.db_manager = DatabaseManager(self.db_path)
         self.db_manager.initialize_database()  # Initialize database with schema
-        self.markov_repo = MarkovRepository(self.db_manager)
+        # markov_transitions.game_id is a FK to games, so create a game first.
+        game_id = GameRepository(self.db_manager).create_game("test_player", "medium", 10)
+        self.markov_repo = MarkovRepository(self.db_manager, game_id=game_id)
         
     def tearDown(self):
         """Clean up the database connection."""
