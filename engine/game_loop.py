@@ -37,6 +37,8 @@ class GameLoop:
             event_manager=self.event_manager,
             repo_manager=self.repo_manager
         )
+        # Alias for convenience / external access.
+        self.state = self.game_state
         
         # Setup event subscriptions
         self._setup_event_subscriptions()

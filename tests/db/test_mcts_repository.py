@@ -1,12 +1,20 @@
+import os
+import tempfile
 import pytest
 from database.repositories.mcts_repository import MCTSRepository
 from database.manager import DatabaseManager
 
 @pytest.fixture
 def db_manager():
-    manager = DatabaseManager(':memory:')
+    # Use a temp file rather than ':memory:' because the manager opens a new
+    # connection per query, and each ':memory:' connection is a separate DB.
+    tf = tempfile.NamedTemporaryFile(delete=False)
+    tf.close()
+    manager = DatabaseManager(tf.name)
     manager.initialize_database()
-    return manager
+    yield manager
+    manager.close()
+    os.unlink(tf.name)
 
 @pytest.fixture
 def repository(db_manager):
@@ -19,7 +27,7 @@ def test_record_simulation(repository):
     
     # Verify statistics
     stats = repository.get_state_action_stats('state1', 'action1')
-    assert stats['reward'] == 0.85  # Average of 0.8 and 0.9
+    assert stats['reward'] == pytest.approx(0.85)  # Average of 0.8 and 0.9
     assert stats['visit_count'] == 2
     
 def test_get_state_actions(repository):

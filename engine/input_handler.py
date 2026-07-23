@@ -46,50 +46,50 @@ class InputHandler:
         boggle = game_state.boggle_letters
         available_letters = shared + boggle
 
-        while True:
-            try:
-                user_input = input("\nEnter a word, or type 'boggle' to redraw letters, or 'quit' to end the game: ")
-                cleaned_input = user_input.strip().lower()
-                logger.debug(f"Player entered: {cleaned_input}")
+        try:
+            user_input = input("\nEnter a word, or type 'boggle' to redraw letters, or 'quit' to end the game: ")
+            cleaned_input = user_input.strip().lower()
+            logger.debug(f"Player entered: {cleaned_input}")
 
-                if cleaned_input == "quit":
-                    self.event_manager.emit(GameEvent(
-                        type=EventType.GAME_QUIT,
-                        data={"reason": "player_request"}
-                    ))
-                    return "QUIT"
-                elif cleaned_input == "boggle":
-                    self.event_manager.emit(GameEvent(
-                        type=EventType.BOGGLE_REQUESTED,
-                        data={"current_letters": available_letters}
-                    ))
-                    return "BOGGLE"
-                elif not cleaned_input.isalpha():
-                    print("Invalid input. Please enter a word using alphabetic characters only.")
-                    continue
-
-                # Validate word using WordValidator
-                if not self.word_validator.validate_word_with_letters(cleaned_input, available_letters):
-                    print(f"'{cleaned_input}' cannot be formed with the current letters.")
-                    self.event_manager.emit(GameEvent(
-                        type=EventType.INVALID_WORD,
-                        data={
-                            "word": cleaned_input.upper(),
-                            "available_letters": [l.upper() for l in available_letters]
-                        }
-                    ))
-                    continue
-
-                return cleaned_input.upper()
-
-            except (KeyboardInterrupt, EOFError):
-                print("\nGame interrupted. Exiting.")
-                logger.warning("Game interrupted by user.")
+            if cleaned_input == "quit":
                 self.event_manager.emit(GameEvent(
                     type=EventType.GAME_QUIT,
-                    data={"reason": "keyboard_interrupt"}
+                    data={"reason": "player_request"}
                 ))
                 return "QUIT"
+            elif cleaned_input == "boggle":
+                self.event_manager.emit(GameEvent(
+                    type=EventType.BOGGLE_REQUESTED,
+                    data={"current_letters": available_letters}
+                ))
+                return "BOGGLE"
+            elif not cleaned_input.isalpha():
+                print("Invalid input. Please enter a word using alphabetic characters only.")
+                return cleaned_input
+
+            # Validate word using WordValidator; on failure emit an event and
+            # return the word so the caller can handle the rejection.
+            if not self.word_validator.validate_word_with_letters(cleaned_input, available_letters):
+                print(f"'{cleaned_input}' cannot be formed with the current letters.")
+                self.event_manager.emit(GameEvent(
+                    type=EventType.INVALID_WORD,
+                    data={
+                        "word": cleaned_input.upper(),
+                        "available_letters": [l.upper() for l in available_letters]
+                    }
+                ))
+                return cleaned_input
+
+            return cleaned_input
+
+        except (KeyboardInterrupt, EOFError):
+            print("\nGame interrupted. Exiting.")
+            logger.warning("Game interrupted by user.")
+            self.event_manager.emit(GameEvent(
+                type=EventType.GAME_QUIT,
+                data={"reason": "keyboard_interrupt"}
+            ))
+            return "QUIT"
 
     def process_input(self, user_input: str, current_category: Optional[str] = None) -> Tuple[str, Dict]:
         """

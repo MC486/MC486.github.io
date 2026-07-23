@@ -1,12 +1,20 @@
+import os
+import tempfile
 import pytest
 from database.repositories.naive_bayes_repository import NaiveBayesRepository
 from database.manager import DatabaseManager
 
 @pytest.fixture
 def db_manager():
-    manager = DatabaseManager(':memory:')
+    # Use a temp file rather than ':memory:' because the manager opens a new
+    # connection per query, and each ':memory:' connection is a separate DB.
+    tf = tempfile.NamedTemporaryFile(delete=False)
+    tf.close()
+    manager = DatabaseManager(tf.name)
     manager.initialize_database()
-    return manager
+    yield manager
+    manager.close()
+    os.unlink(tf.name)
 
 @pytest.fixture
 def repository(db_manager):

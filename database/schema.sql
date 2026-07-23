@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS games (
     difficulty TEXT NOT NULL DEFAULT 'medium' CHECK (difficulty IN ('easy', 'medium', 'hard')),
     max_attempts INTEGER NOT NULL DEFAULT 10 CHECK (max_attempts > 0),
     status TEXT NOT NULL DEFAULT 'in_progress' CHECK (status IN ('in_progress', 'completed', 'abandoned')),
-    game_score INTEGER DEFAULT 0,
+    score INTEGER DEFAULT 0,
     end_time TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -103,17 +103,14 @@ CREATE TABLE IF NOT EXISTS markov_transitions (
 -- Create q_learning_backups table
 CREATE TABLE IF NOT EXISTS q_learning_backups (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    game_id INTEGER NOT NULL,
     name TEXT NOT NULL UNIQUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (game_id) REFERENCES games(id) ON DELETE CASCADE
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Create q_learning_states table
 CREATE TABLE IF NOT EXISTS q_learning_states (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    game_id INTEGER NOT NULL,
     state_hash TEXT NOT NULL,
     action TEXT NOT NULL,
     q_value REAL NOT NULL DEFAULT 0.0,
@@ -121,27 +118,23 @@ CREATE TABLE IF NOT EXISTS q_learning_states (
     reward REAL NOT NULL DEFAULT 0.0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (game_id) REFERENCES games(id) ON DELETE CASCADE,
-    UNIQUE(game_id, state_hash, action)
+    UNIQUE(state_hash, action)
 );
 
 -- Create q_learning_rewards table
 CREATE TABLE IF NOT EXISTS q_learning_rewards (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    game_id INTEGER NOT NULL,
     state_hash TEXT NOT NULL,
     action TEXT NOT NULL,
     reward REAL NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (game_id) REFERENCES games(id) ON DELETE CASCADE,
-    FOREIGN KEY (game_id, state_hash, action) REFERENCES q_learning_states(game_id, state_hash, action) ON DELETE CASCADE
+    FOREIGN KEY (state_hash, action) REFERENCES q_learning_states(state_hash, action) ON DELETE CASCADE
 );
 
 -- Create q_learning_backup_states table
 CREATE TABLE IF NOT EXISTS q_learning_backup_states (
     backup_id INTEGER NOT NULL,
-    game_id INTEGER NOT NULL,
     state_hash TEXT NOT NULL,
     action TEXT NOT NULL,
     q_value REAL NOT NULL,
@@ -150,8 +143,7 @@ CREATE TABLE IF NOT EXISTS q_learning_backup_states (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (backup_id, state_hash, action),
-    FOREIGN KEY (backup_id) REFERENCES q_learning_backups(id) ON DELETE CASCADE,
-    FOREIGN KEY (game_id) REFERENCES games(id) ON DELETE CASCADE
+    FOREIGN KEY (backup_id) REFERENCES q_learning_backups(id) ON DELETE CASCADE
 );
 
 -- Naive Bayes tables
@@ -169,28 +161,23 @@ CREATE TABLE IF NOT EXISTS naive_bayes_words (
 -- MCTS tables
 CREATE TABLE IF NOT EXISTS mcts_states (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    game_id INTEGER NOT NULL,
     state TEXT NOT NULL,
     visit_count INTEGER NOT NULL DEFAULT 1,
     total_reward REAL NOT NULL DEFAULT 0.0,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (game_id) REFERENCES games(id) ON DELETE CASCADE,
-    UNIQUE(game_id, state)
+    UNIQUE(state)
 );
 
-CREATE TABLE IF NOT EXISTS mcts_simulations (
+CREATE TABLE IF NOT EXISTS mcts_actions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    game_id INTEGER NOT NULL,
     state TEXT NOT NULL,
     action TEXT NOT NULL,
+    avg_reward REAL NOT NULL DEFAULT 0.0,
     visit_count INTEGER NOT NULL DEFAULT 1,
-    total_reward REAL NOT NULL DEFAULT 0.0,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (game_id) REFERENCES games(id) ON DELETE CASCADE,
-    FOREIGN KEY (game_id, state) REFERENCES mcts_states(game_id, state) ON DELETE CASCADE,
-    UNIQUE(game_id, state, action)
+    UNIQUE(state, action)
 );
 
 -- Create indexes for frequently queried columns
@@ -207,20 +194,16 @@ CREATE INDEX IF NOT EXISTS idx_markov_transitions_game_id ON markov_transitions(
 CREATE INDEX IF NOT EXISTS idx_markov_transitions_current_state ON markov_transitions(current_state);
 CREATE INDEX IF NOT EXISTS idx_markov_transitions_next_state ON markov_transitions(next_state);
 CREATE INDEX IF NOT EXISTS idx_markov_transitions_probability ON markov_transitions(probability);
-CREATE INDEX IF NOT EXISTS idx_q_learning_states_game_id ON q_learning_states(game_id);
 CREATE INDEX IF NOT EXISTS idx_q_learning_states_state_hash ON q_learning_states(state_hash);
 CREATE INDEX IF NOT EXISTS idx_q_learning_states_action ON q_learning_states(action);
 CREATE INDEX IF NOT EXISTS idx_q_learning_states_q_value ON q_learning_states(q_value);
-CREATE INDEX IF NOT EXISTS idx_q_learning_rewards_game_id ON q_learning_rewards(game_id);
 CREATE INDEX IF NOT EXISTS idx_q_learning_rewards_state_hash ON q_learning_rewards(state_hash);
 CREATE INDEX IF NOT EXISTS idx_q_learning_rewards_action ON q_learning_rewards(action);
 CREATE INDEX IF NOT EXISTS idx_naive_bayes_words_word ON naive_bayes_words(word);
 CREATE INDEX IF NOT EXISTS idx_naive_bayes_words_pattern_type ON naive_bayes_words(pattern_type);
-CREATE INDEX IF NOT EXISTS idx_mcts_states_game_id ON mcts_states(game_id);
 CREATE INDEX IF NOT EXISTS idx_mcts_states_state ON mcts_states(state);
-CREATE INDEX IF NOT EXISTS idx_mcts_simulations_game_id ON mcts_simulations(game_id);
-CREATE INDEX IF NOT EXISTS idx_mcts_simulations_state ON mcts_simulations(state);
-CREATE INDEX IF NOT EXISTS idx_mcts_simulations_action ON mcts_simulations(action);
+CREATE INDEX IF NOT EXISTS idx_mcts_actions_state ON mcts_actions(state);
+CREATE INDEX IF NOT EXISTS idx_mcts_actions_action ON mcts_actions(action);
 
 -- Word usage indexes
 CREATE INDEX IF NOT EXISTS idx_word_usage_word_id ON word_usage(word_id);
@@ -361,16 +344,10 @@ BEGIN
     UPDATE mcts_states SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
 END;
 
-CREATE TRIGGER IF NOT EXISTS trg_mcts_simulations_created_at 
-AFTER INSERT ON mcts_simulations
+CREATE TRIGGER IF NOT EXISTS trg_mcts_actions_updated_at 
+AFTER UPDATE ON mcts_actions
 BEGIN
-    UPDATE mcts_simulations SET created_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
-END;
-
-CREATE TRIGGER IF NOT EXISTS trg_mcts_simulations_updated_at 
-AFTER UPDATE ON mcts_simulations
-BEGIN
-    UPDATE mcts_simulations SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+    UPDATE mcts_actions SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
 END;
 
 -- Create trigger for updating word count in dictionary domains

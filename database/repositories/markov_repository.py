@@ -220,7 +220,7 @@ class MarkovRepository(BaseRepository):
                 chain_stats.*,
                 most_uncertain.most_uncertain_state,
                 most_certain.most_certain_state,
-                (SELECT AVG(entropy) FROM state_entropy) as avg_entropy
+                (SELECT AVG(entropy) FROM state_entropy) as average_entropy
             FROM chain_stats
             LEFT JOIN most_uncertain
             LEFT JOIN most_certain
@@ -236,7 +236,7 @@ class MarkovRepository(BaseRepository):
             transitions: List of (current_state, next_state, count) tuples
         """
         self._check_game_id()
-        params = [(self.game_id, current_state, next_state, count, count, count, count, count)
+        params = [(self.game_id, current_state, next_state, count, count, count, count)
                  for current_state, next_state, count in transitions]
         
         self.db_manager.execute_many("""
@@ -260,16 +260,16 @@ class MarkovRepository(BaseRepository):
             Number of transitions removed
         """
         self._check_game_id()
-        result = self.db_manager.execute_query("""
-            WITH deleted AS (
-                DELETE FROM markov_transitions
-                WHERE game_id = ? AND updated_at < datetime('now', ?)
-                RETURNING *
-            )
-            SELECT COUNT(*) as count FROM deleted
+        count = self.db_manager.get_scalar("""
+            SELECT COUNT(*) FROM markov_transitions
+            WHERE game_id = ? AND updated_at < datetime('now', ?)
+        """, (self.game_id, f'-{days} days')) or 0
+        self.db_manager.execute("""
+            DELETE FROM markov_transitions
+            WHERE game_id = ? AND updated_at < datetime('now', ?)
         """, (self.game_id, f'-{days} days'))
         
-        return result[0]['count'] if result else 0
+        return count
         
     def get_transitions(self) -> Dict[str, Dict[str, float]]:
         """

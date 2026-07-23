@@ -47,6 +47,10 @@ class GameHistoryTracker:
         self.event_manager.subscribe(EventType.WORD_SUBMITTED, self._handle_word_submission)
         self.event_manager.subscribe(EventType.TURN_START, self._handle_turn_start)
 
+    def _handle_turn_start(self, event: GameEvent) -> None:
+        """Handle turn start event (no per-turn setup needed currently)."""
+        pass
+
     def _handle_game_start(self, event: GameEvent) -> None:
         """Handle game start event"""
         self.current_game = GameRecord(

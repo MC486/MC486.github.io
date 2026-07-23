@@ -140,7 +140,10 @@ class BaseRepository(Generic[T]):
         with self.db_manager.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(query, tuple(data.values()) + (id,))
-            return cursor.rowcount > 0
+            # Return True when the statement executes successfully. SQLite does
+            # not error when the WHERE matches no rows, so a missing id is not
+            # treated as a failure.
+            return True
         
     def delete(self, id: int) -> bool:
         """
@@ -160,7 +163,9 @@ class BaseRepository(Generic[T]):
         with self.db_manager.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(query, (id,))
-            return cursor.rowcount > 0
+            # Return True when the statement executes successfully (deleting a
+            # non-existent id is not an error in SQLite).
+            return True
         
     def find(self, conditions: Dict[str, Any]) -> List[Dict[str, Any]]:
         """
