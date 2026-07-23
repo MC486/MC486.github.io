@@ -64,8 +64,24 @@ class WordFrequencyAnalyzer:
         # Reset analysis data
         self._initialize_analysis()
         
-        # Load initial word frequencies from repository
-        usage_data = self.word_repo.get_word_usage()
+        # Analyze the words that were passed in
+        for word in words or []:
+            if not word:
+                continue
+            word = word.upper()
+            if not word.isalpha():
+                continue
+            self._analyze_single_word(word)
+            self.analyzed_words[word] = {
+                'length': len(word),
+                'frequency': self.analyzed_words.get(word, {}).get('frequency', 1)
+            }
+        
+        # Load additional word frequencies from the repository
+        try:
+            usage_data = self.word_repo.get_word_usage()
+        except Exception:
+            usage_data = []
         for word_data in usage_data:
             word = word_data["word"].upper()
             self._analyze_single_word(word)
@@ -254,7 +270,10 @@ class WordFrequencyAnalyzer:
         Returns:
             List of analyzed words
         """
-        # Get words from repository instead of preloaded list
+        # Prefer the in-memory analyzed words (populated by analyze_word_list);
+        # fall back to the repository usage data when nothing is loaded yet.
+        if self.analyzed_words:
+            return list(self.analyzed_words.keys())
         usage_data = self.word_repo.get_word_usage()
         return [word_data["word"].upper() for word_data in usage_data]
 

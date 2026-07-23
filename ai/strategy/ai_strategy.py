@@ -1,6 +1,7 @@
 from typing import Dict, List, Set, Optional, Tuple, Any
 import logging
-from collections import defaultdict
+import random
+from collections import defaultdict, Counter
 from core.game_events import GameEvent, EventType
 from core.game_events_manager import GameEventManager
 from ai.models import MarkovChain, MCTS, NaiveBayes, QLearning
@@ -65,12 +66,17 @@ class AIStrategy:
         self.markov_repository = self.db_manager.get_markov_repository(self.game_id)
         self.naive_bayes_repository = self.db_manager.get_naive_bayes_repository()
         self.mcts_repository = self.db_manager.get_mcts_repository()
-        self.q_learning_repository = self.db_manager.get_q_learning_repository()
+        self.q_learning_repository = self.db_manager.get_q_learning_repository(self.game_id)
         
-        # Initialize word analyzer with empty list since we're using on-demand validation
-        self.word_analyzer.analyze_word_list([])
+        # Seed the analyzer with a real vocabulary of common, valid English
+        # words so the models can actually generate valid words. Previously it
+        # was seeded with an empty list, so the Markov model had no transitions
+        # and the AI never produced a suggestion.
+        self.vocabulary = self._load_seed_vocabulary()
+        self.word_analyzer.analyze_word_list(self.vocabulary)
         
-        # Initialize AI components
+        # Initialize AI components. The Markov model builds its transition
+        # matrix from the analyzer's (now populated) vocabulary on construction.
         self.markov_chain = MarkovChain(
             event_manager=self.event_manager,
             word_analyzer=self.word_analyzer,
@@ -78,13 +84,7 @@ class AIStrategy:
             markov_repository=self.markov_repository,
             order=2
         )
-        
-        # Brief pre-training with common words
-        common_words = [
-            "the", "be", "to", "of", "and", "a", "in", "that", "have", "I",
-            "it", "for", "not", "on", "with", "he", "as", "you", "do", "at"
-        ]
-        self.markov_chain.train(common_words)
+        self.markov_chain.is_trained = True
         
         self.mcts = MCTS(
             valid_words=self.word_analyzer.get_analyzed_words(),
@@ -121,6 +121,31 @@ class AIStrategy:
         # Subscribe to relevant game events
         self._setup_event_subscriptions()
         logger.info(f"AIStrategy initialized with difficulty: {difficulty}")
+
+    def _load_seed_vocabulary(self, size: int = 20000) -> List[str]:
+        """
+        Load a vocabulary of common, valid English words for the AI models.
+
+        Uses the most frequent English words (via ``wordfreq``) filtered to
+        real dictionary words that fit the game's length rules. Membership is
+        checked against the validator's in-memory dictionary so this does not
+        touch the database.
+        """
+        try:
+            from wordfreq import top_n_list
+            candidates = top_n_list('en', size)
+        except Exception as e:
+            logger.warning(f"Could not load seed vocabulary from wordfreq: {e}")
+            candidates = []
+
+        valid_words = getattr(self.word_validator, 'nltk_words', set())
+        vocabulary = []
+        for word in candidates:
+            word = word.upper()
+            if 3 <= len(word) <= 15 and word.isalpha() and word in valid_words:
+                vocabulary.append(word)
+        logger.info(f"Loaded seed vocabulary of {len(vocabulary)} words for the AI")
+        return vocabulary
 
     def _setup_event_subscriptions(self) -> None:
         """Set up event subscriptions for strategy updates."""
@@ -279,45 +304,80 @@ class AIStrategy:
         
         return selected_word
 
+    # Approximate letter values, mirroring core.word_scoring, so the AI values
+    # words the same way the game scores them.
+    _LETTER_VALUES = {
+        'e': 1, 'a': 1, 'i': 1, 'o': 1, 'n': 1, 'r': 1, 't': 1, 'l': 1, 's': 1,
+        'd': 2, 'g': 2, 'b': 3, 'c': 3, 'm': 3, 'p': 3,
+        'f': 4, 'h': 4, 'v': 4, 'w': 4, 'y': 4,
+        'k': 5, 'j': 8, 'x': 8, 'q': 10, 'z': 10
+    }
+
+    def _formable_words(self, available_letters: Set[str]) -> List[str]:
+        """Return vocabulary words that can be formed from the available letters."""
+        pool = Counter(letter.upper() for letter in available_letters)
+        formable = []
+        for word in self.vocabulary:
+            counts = Counter(word)
+            if all(pool.get(letter, 0) >= n for letter, n in counts.items()):
+                formable.append(word)
+        return formable
+
+    def _word_value(self, word: str) -> int:
+        """Estimate a word's game value (length + letter rarity, length bonuses)."""
+        w = word.lower()
+        score = len(w) + sum(self._LETTER_VALUES.get(ch, 0) for ch in w)
+        if len(w) >= 7:
+            score *= 2
+        elif len(w) >= 5:
+            score = int(score * 1.5)
+        return score
+
     def _generate_candidates(self, 
                            available_letters: Set[str], 
                            turn_number: int) -> Set[str]:
-        """Generate candidate words from all models"""
+        """Generate candidate words the AI could actually play."""
         candidates = set()
-        
-        # Get suggestions from each model
+
+        # Primary source: real vocabulary words formable from the available
+        # letters. Keep the higher-value (longer) ones to bound the work.
+        formable = self._formable_words(available_letters)
+        formable.sort(key=len, reverse=True)
+        candidates.update(formable[:50])
+
+        # Also let any model that supports suggestions contribute.
         for model_name, model in self.models.items():
             if hasattr(model, "get_suggestion"):
                 try:
                     word, _ = model.get_suggestion(available_letters)
                     if word and self.word_validator.validate_word_with_letters(word, available_letters):
-                        candidates.add(word)
-                        # If using deterministic weights, return first valid word from highest weighted model
-                        if self.model_weights[model_name] >= 0.99:  # Use 0.99 to handle floating point imprecision
-                            return {word}
+                        candidates.add(word.upper())
                 except Exception as e:
                     logger.warning(f"Error getting suggestion from {model_name}: {e}")
                     continue
-        
-        return candidates
 
+        return candidates
+    
     def _score_candidates(self, 
                          candidates: Set[str], 
                          available_letters: Set[str]) -> List[Tuple[str, float]]:
-        """Score candidate words"""
-        scored_words = []
-        for word in candidates:
-            score = 0.0
-            for model_name, model in self.models.items():
-                if hasattr(model, "get_suggestion"):
-                    _, confidence = model.get_suggestion(available_letters)
-                    score += confidence * self.model_weights[model_name]
-            scored_words.append((word, score))
+        """Score candidate words by their estimated game value."""
+        scored_words = [(word, float(self._word_value(word))) for word in candidates]
         return sorted(scored_words, key=lambda x: x[1], reverse=True)
-
+    
     def _select_best_word(self, scored_words: List[Tuple[str, float]]) -> str:
-        """Select best word from candidates"""
-        return scored_words[0][0] if scored_words else ""
+        """Select a word from the scored candidates, factoring in difficulty."""
+        if not scored_words:
+            return ""
+        if self.difficulty == "hard":
+            return scored_words[0][0]
+        if self.difficulty == "easy":
+            # Prefer weaker plays: pick from the lower-value half.
+            lower_half = scored_words[len(scored_words) // 2:] or scored_words
+            return random.choice(lower_half)[0]
+        # medium: pick among the strongest handful for some variety.
+        top = scored_words[:5]
+        return random.choice(top)[0]
 
     def get_learning_stats(self) -> Dict[str, Any]:
         """

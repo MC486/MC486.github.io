@@ -157,15 +157,13 @@ CREATE TABLE IF NOT EXISTS q_learning_backup_states (
 -- Naive Bayes tables
 CREATE TABLE IF NOT EXISTS naive_bayes_words (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    game_id INTEGER NOT NULL,
     word TEXT NOT NULL,
     probability REAL NOT NULL,
     pattern_type TEXT,
     visit_count INTEGER NOT NULL DEFAULT 1,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (game_id) REFERENCES games(id) ON DELETE CASCADE,
-    UNIQUE(game_id, word, pattern_type)
+    UNIQUE(word, pattern_type)
 );
 
 -- MCTS tables
@@ -216,7 +214,6 @@ CREATE INDEX IF NOT EXISTS idx_q_learning_states_q_value ON q_learning_states(q_
 CREATE INDEX IF NOT EXISTS idx_q_learning_rewards_game_id ON q_learning_rewards(game_id);
 CREATE INDEX IF NOT EXISTS idx_q_learning_rewards_state_hash ON q_learning_rewards(state_hash);
 CREATE INDEX IF NOT EXISTS idx_q_learning_rewards_action ON q_learning_rewards(action);
-CREATE INDEX IF NOT EXISTS idx_naive_bayes_words_game_id ON naive_bayes_words(game_id);
 CREATE INDEX IF NOT EXISTS idx_naive_bayes_words_word ON naive_bayes_words(word);
 CREATE INDEX IF NOT EXISTS idx_naive_bayes_words_pattern_type ON naive_bayes_words(pattern_type);
 CREATE INDEX IF NOT EXISTS idx_mcts_states_game_id ON mcts_states(game_id);

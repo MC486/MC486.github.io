@@ -6,10 +6,21 @@ from .base_repository import BaseRepository
 class QLearningRepository(BaseRepository):
     """Repository for managing Q-learning states and values."""
     
-    def __init__(self, db_manager: DatabaseManager):
-        """Initialize the Q-learning repository."""
+    def __init__(self, db_manager: DatabaseManager, game_id: Optional[int] = None):
+        """Initialize the Q-learning repository.
+
+        Args:
+            db_manager: Database manager instance
+            game_id: Optional game ID used when persisting state-action rows
+                (the ``q_learning_states`` table requires a game_id).
+        """
         super().__init__(db_manager, "q_learning_states")
-        
+        self.game_id = game_id
+
+    def set_game_id(self, game_id: int) -> None:
+        """Set the game ID for this repository instance."""
+        self.game_id = game_id
+
     def record_state_action(self, state_hash: str, action: str, q_value: float, visit_count: int = 1) -> None:
         """
         Record a state-action pair.
@@ -32,9 +43,48 @@ class QLearningRepository(BaseRepository):
         # If no rows were updated, insert new record
         if self.db.get_scalar("SELECT changes()") == 0:
             self.db.execute_query("""
-                INSERT INTO q_learning_states (state_hash, action, q_value, visit_count)
-                VALUES (?, ?, ?, ?)
-            """, (state_hash, action, q_value, visit_count))
+                INSERT INTO q_learning_states (game_id, state_hash, action, q_value, visit_count)
+                VALUES (?, ?, ?, ?, ?)
+            """, (self.game_id, state_hash, action, q_value, visit_count))
+
+    def get_q_values(self) -> Dict[str, Dict[str, float]]:
+        """
+        Load all Q-values as a nested ``{state_hash: {action: q_value}}`` dict.
+
+        Returns an empty dict when there are no stored values yet.
+        """
+        rows = self.db.execute_query("""
+            SELECT state_hash, action, q_value
+            FROM q_learning_states
+        """)
+        q_values: Dict[str, Dict[str, float]] = {}
+        for row in rows or []:
+            q_values.setdefault(row['state_hash'], {})[row['action']] = row['q_value']
+        return q_values
+
+    def save_q_values(self, q_table: Dict[str, Dict[str, float]]) -> None:
+        """Persist a nested ``{state_hash: {action: q_value}}`` Q-table."""
+        for state_hash, actions in (q_table or {}).items():
+            for action, q_value in actions.items():
+                self.record_state_action(state_hash, action, q_value, visit_count=0)
+
+    def get_training_metrics(self) -> List[Dict[str, Any]]:
+        """
+        Return stored training metrics.
+
+        Training metrics are not persisted (there is no metrics table), so this
+        returns an empty list. Provided so the model can load without error.
+        """
+        return []
+
+    def save_training_metrics(self, metrics: List[Dict[str, Any]]) -> None:
+        """
+        Persist training metrics.
+
+        No-op: training metrics are kept in memory by the model and are not
+        currently persisted. Provided so the model can save without error.
+        """
+        return None
         
     def get_q_value(self, state_hash: str, action: str) -> Optional[Dict[str, Any]]:
         """
