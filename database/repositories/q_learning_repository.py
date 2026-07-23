@@ -43,9 +43,9 @@ class QLearningRepository(BaseRepository):
         # If no rows were updated, insert new record
         if self.db.get_scalar("SELECT changes()") == 0:
             self.db.execute_query("""
-                INSERT INTO q_learning_states (game_id, state_hash, action, q_value, visit_count)
-                VALUES (?, ?, ?, ?, ?)
-            """, (self.game_id, state_hash, action, q_value, visit_count))
+                INSERT INTO q_learning_states (state_hash, action, q_value, visit_count)
+                VALUES (?, ?, ?, ?)
+            """, (state_hash, action, q_value, visit_count))
 
     def get_q_values(self) -> Dict[str, Dict[str, float]]:
         """
@@ -183,6 +183,32 @@ class QLearningRepository(BaseRepository):
         result = self.db.get_scalar("SELECT changes()")
         return result or 0
         
+    def get_all_states(self) -> List[Dict[str, Any]]:
+        """Return all stored state-action rows."""
+        return self.db.execute_query("""
+            SELECT state_hash, action, q_value, visit_count
+            FROM q_learning_states
+            ORDER BY state_hash, action
+        """) or []
+
+    def get_state_action_count(self, state_hash: str) -> int:
+        """Return the number of distinct actions recorded for a state."""
+        result = self.db.get_scalar("""
+            SELECT COUNT(*) FROM q_learning_states
+            WHERE state_hash = ?
+        """, (state_hash,))
+        return result or 0
+
+    def get_most_visited_states(self, limit: int = 10) -> List[Dict[str, Any]]:
+        """Return the most-visited states, ordered by total visit count desc."""
+        return self.db.execute_query("""
+            SELECT state_hash, SUM(visit_count) as visit_count
+            FROM q_learning_states
+            GROUP BY state_hash
+            ORDER BY visit_count DESC
+            LIMIT ?
+        """, (limit,)) or []
+
     def get_max_q_value(self, state_hash: str) -> float:
         """
         Get the maximum Q-value for a state.
@@ -424,7 +450,7 @@ class QLearningRepository(BaseRepository):
                 COUNT(DISTINCT state_hash) as states_explored,
                 COUNT(*) as actions_tried,
                 AVG(q_value) as average_q_value,
-                AVG(1.0 / (visit_count ** 0.5)) as exploration_rate,
+                AVG(1.0 / visit_count) as exploration_rate,
                 AVG(1.0 / visit_count) as learning_rate,
                 (SELECT COUNT(*) FROM q_learning_rewards WHERE reward > 0) * 1.0 / 
                 (SELECT COUNT(*) FROM q_learning_rewards) as success_rate
@@ -464,7 +490,11 @@ class QLearningRepository(BaseRepository):
                 VALUES (?)
             """, (backup_name,))
             
-            backup_id = self.db.get_scalar("SELECT last_insert_rowid()")
+            # Fetch the id by name; last_insert_rowid() is unreliable here
+            # because each query may run on a fresh connection.
+            backup_id = self.db.get_scalar("""
+                SELECT id FROM q_learning_backups WHERE name = ?
+            """, (backup_name,))
             
             self.db.execute_query(f"""
                 CREATE TABLE q_learning_backup_{backup_id} AS

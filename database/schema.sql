@@ -103,17 +103,14 @@ CREATE TABLE IF NOT EXISTS markov_transitions (
 -- Create q_learning_backups table
 CREATE TABLE IF NOT EXISTS q_learning_backups (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    game_id INTEGER NOT NULL,
     name TEXT NOT NULL UNIQUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (game_id) REFERENCES games(id) ON DELETE CASCADE
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Create q_learning_states table
 CREATE TABLE IF NOT EXISTS q_learning_states (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    game_id INTEGER NOT NULL,
     state_hash TEXT NOT NULL,
     action TEXT NOT NULL,
     q_value REAL NOT NULL DEFAULT 0.0,
@@ -121,27 +118,23 @@ CREATE TABLE IF NOT EXISTS q_learning_states (
     reward REAL NOT NULL DEFAULT 0.0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (game_id) REFERENCES games(id) ON DELETE CASCADE,
-    UNIQUE(game_id, state_hash, action)
+    UNIQUE(state_hash, action)
 );
 
 -- Create q_learning_rewards table
 CREATE TABLE IF NOT EXISTS q_learning_rewards (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    game_id INTEGER NOT NULL,
     state_hash TEXT NOT NULL,
     action TEXT NOT NULL,
     reward REAL NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (game_id) REFERENCES games(id) ON DELETE CASCADE,
-    FOREIGN KEY (game_id, state_hash, action) REFERENCES q_learning_states(game_id, state_hash, action) ON DELETE CASCADE
+    FOREIGN KEY (state_hash, action) REFERENCES q_learning_states(state_hash, action) ON DELETE CASCADE
 );
 
 -- Create q_learning_backup_states table
 CREATE TABLE IF NOT EXISTS q_learning_backup_states (
     backup_id INTEGER NOT NULL,
-    game_id INTEGER NOT NULL,
     state_hash TEXT NOT NULL,
     action TEXT NOT NULL,
     q_value REAL NOT NULL,
@@ -150,8 +143,7 @@ CREATE TABLE IF NOT EXISTS q_learning_backup_states (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (backup_id, state_hash, action),
-    FOREIGN KEY (backup_id) REFERENCES q_learning_backups(id) ON DELETE CASCADE,
-    FOREIGN KEY (game_id) REFERENCES games(id) ON DELETE CASCADE
+    FOREIGN KEY (backup_id) REFERENCES q_learning_backups(id) ON DELETE CASCADE
 );
 
 -- Naive Bayes tables
@@ -207,11 +199,9 @@ CREATE INDEX IF NOT EXISTS idx_markov_transitions_game_id ON markov_transitions(
 CREATE INDEX IF NOT EXISTS idx_markov_transitions_current_state ON markov_transitions(current_state);
 CREATE INDEX IF NOT EXISTS idx_markov_transitions_next_state ON markov_transitions(next_state);
 CREATE INDEX IF NOT EXISTS idx_markov_transitions_probability ON markov_transitions(probability);
-CREATE INDEX IF NOT EXISTS idx_q_learning_states_game_id ON q_learning_states(game_id);
 CREATE INDEX IF NOT EXISTS idx_q_learning_states_state_hash ON q_learning_states(state_hash);
 CREATE INDEX IF NOT EXISTS idx_q_learning_states_action ON q_learning_states(action);
 CREATE INDEX IF NOT EXISTS idx_q_learning_states_q_value ON q_learning_states(q_value);
-CREATE INDEX IF NOT EXISTS idx_q_learning_rewards_game_id ON q_learning_rewards(game_id);
 CREATE INDEX IF NOT EXISTS idx_q_learning_rewards_state_hash ON q_learning_rewards(state_hash);
 CREATE INDEX IF NOT EXISTS idx_q_learning_rewards_action ON q_learning_rewards(action);
 CREATE INDEX IF NOT EXISTS idx_naive_bayes_words_word ON naive_bayes_words(word);
