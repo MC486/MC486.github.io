@@ -64,19 +64,23 @@ class WordScorer:
                 'is_valid': False
             }
 
-def score_word(word: str, word_validator: WordValidator, category: Optional[str] = None) -> int:
+def score_word(word: str, word_validator: Optional[WordValidator] = None,
+               category: Optional[str] = None, repeat_count: int = 0) -> int:
     """
     Calculate the score for a word based on various factors.
     
     Args:
         word: The word to score
-        word_validator: Validator instance to check word validity
+        word_validator: Optional validator; if provided and the word is invalid,
+            the score is 0. When omitted, the word is scored without validation.
         category: Optional category to check against (currently unused)
+        repeat_count: Number of previous uses of the word; each prior use halves
+            the score (with a floor of 1 point).
         
     Returns:
         Score for the word, or 0 if invalid
     """
-    if not word_validator.validate_word(word):
+    if word_validator is not None and not word_validator.validate_word(word):
         return 0
         
     # Base score is the length of the word
@@ -101,6 +105,10 @@ def score_word(word: str, word_validator: WordValidator, category: Optional[str]
         score *= 2
     elif len(word) >= 5:
         score = int(score * 1.5)
+    
+    # Penalty for repeated use of the same word.
+    if repeat_count > 0:
+        score = max(1, int(score * (0.5 ** repeat_count)))
         
     return score
 

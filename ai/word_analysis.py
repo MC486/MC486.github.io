@@ -77,18 +77,19 @@ class WordFrequencyAnalyzer:
                 'frequency': self.analyzed_words.get(word, {}).get('frequency', 1)
             }
         
-        # Load additional word frequencies from the repository
+        # Load additional word frequencies from the repository (best-effort;
+        # tolerate repositories that return no/unexpected data).
         try:
             usage_data = self.word_repo.get_word_usage()
+            for word_data in usage_data:
+                word = word_data["word"].upper()
+                self._analyze_single_word(word)
+                self.analyzed_words[word] = {
+                    'length': len(word),
+                    'frequency': word_data.get('frequency', 1)
+                }
         except Exception:
-            usage_data = []
-        for word_data in usage_data:
-            word = word_data["word"].upper()
-            self._analyze_single_word(word)
-            self.analyzed_words[word] = {
-                'length': len(word),
-                'frequency': word_data.get('frequency', 1)
-            }
+            pass
             
         # Calculate initial probabilities
         self._calculate_probabilities()
@@ -274,8 +275,11 @@ class WordFrequencyAnalyzer:
         # fall back to the repository usage data when nothing is loaded yet.
         if self.analyzed_words:
             return list(self.analyzed_words.keys())
-        usage_data = self.word_repo.get_word_usage()
-        return [word_data["word"].upper() for word_data in usage_data]
+        try:
+            usage_data = self.word_repo.get_word_usage()
+            return [word_data["word"].upper() for word_data in usage_data]
+        except Exception:
+            return []
 
     def analyze_word_usage(self) -> Dict[str, any]:
         """
