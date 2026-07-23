@@ -45,6 +45,10 @@ def input_handler(mock_dependencies):
         category_repo=mock_dependencies['category_repo']
     )
 
+def _last_event(mock_dependencies):
+    """Return the GameEvent passed to the most recent event_manager.emit call."""
+    return mock_dependencies['event_manager'].emit.call_args[0][0]
+
 def test_input_normalization(input_handler, mock_dependencies):
     """
     Tests that input is properly normalized (lowercase and stripped whitespace).
@@ -52,17 +56,18 @@ def test_input_normalization(input_handler, mock_dependencies):
     with patch('builtins.input', return_value='  Boggle  '):
         result = input_handler.get_player_word(mock_dependencies['game_state'])
         assert result == 'BOGGLE'
-        mock_dependencies['event_manager'].emit.assert_called_with(
-            Mock(type=EventType.BOGGLE_REQUESTED, data={'current_letters': ['A', 'T', 'R', 'S', 'E', 'L', 'O', 'P', 'U', 'N']})
-        )
+        event = _last_event(mock_dependencies)
+        assert event.type == EventType.BOGGLE_REQUESTED
+        assert event.data['current_letters'] == ['A', 'T', 'R', 'S', 'E', 'L', 'O', 'P', 'U', 'N']
 
     with patch('builtins.input', return_value=' Quit '):
         result = input_handler.get_player_word(mock_dependencies['game_state'])
         assert result == 'QUIT'
-        mock_dependencies['event_manager'].emit.assert_called_with(
-            Mock(type=EventType.GAME_QUIT, data={'reason': 'player_request'})
-        )
+        event = _last_event(mock_dependencies)
+        assert event.type == EventType.GAME_QUIT
+        assert event.data == {'reason': 'player_request'}
 
+    mock_dependencies['event_manager'].emit.reset_mock()
     with patch('builtins.input', return_value='  Unicorn  '), \
          patch('core.validation.word_validator.WordValidator.validate_word_with_letters', return_value=True):
         result = input_handler.get_player_word(mock_dependencies['game_state'])
@@ -76,9 +81,9 @@ def test_quit_command(input_handler, mock_dependencies):
     with patch('builtins.input', return_value='quit'):
         result = input_handler.get_player_word(mock_dependencies['game_state'])
         assert result == 'QUIT'
-        mock_dependencies['event_manager'].emit.assert_called_with(
-            Mock(type=EventType.GAME_QUIT, data={'reason': 'player_request'})
-        )
+        event = _last_event(mock_dependencies)
+        assert event.type == EventType.GAME_QUIT
+        assert event.data == {'reason': 'player_request'}
 
 def test_boggle_command(input_handler, mock_dependencies):
     """
@@ -87,9 +92,9 @@ def test_boggle_command(input_handler, mock_dependencies):
     with patch('builtins.input', return_value='boggle'):
         result = input_handler.get_player_word(mock_dependencies['game_state'])
         assert result == 'BOGGLE'
-        mock_dependencies['event_manager'].emit.assert_called_with(
-            Mock(type=EventType.BOGGLE_REQUESTED, data={'current_letters': ['A', 'T', 'R', 'S', 'E', 'L', 'O', 'P', 'U', 'N']})
-        )
+        event = _last_event(mock_dependencies)
+        assert event.type == EventType.BOGGLE_REQUESTED
+        assert event.data['current_letters'] == ['A', 'T', 'R', 'S', 'E', 'L', 'O', 'P', 'U', 'N']
 
 def test_valid_word(input_handler, mock_dependencies):
     """
@@ -109,12 +114,10 @@ def test_invalid_word(input_handler, mock_dependencies):
          patch('core.validation.word_validator.WordValidator.validate_word_with_letters', return_value=False):
         result = input_handler.get_player_word(mock_dependencies['game_state'])
         assert result == 'zebra'  # The word is returned but will be rejected by game state
-        mock_dependencies['event_manager'].emit.assert_called_with(
-            Mock(type=EventType.INVALID_WORD, data={
-                'word': 'zebra',
-                'available_letters': ['A', 'T', 'R', 'S', 'E', 'L', 'O', 'P', 'U', 'N']
-            })
-        )
+        event = _last_event(mock_dependencies)
+        assert event.type == EventType.INVALID_WORD
+        assert event.data['word'] == 'ZEBRA'
+        assert event.data['available_letters'] == ['A', 'T', 'R', 'S', 'E', 'L', 'O', 'P', 'U', 'N']
 
 def test_non_alphabetic_input(input_handler, mock_dependencies):
     """
@@ -132,6 +135,6 @@ def test_keyboard_interrupt(input_handler, mock_dependencies):
     with patch('builtins.input', side_effect=KeyboardInterrupt):
         result = input_handler.get_player_word(mock_dependencies['game_state'])
         assert result == 'QUIT'
-        mock_dependencies['event_manager'].emit.assert_called_with(
-            Mock(type=EventType.GAME_QUIT, data={'reason': 'keyboard_interrupt'})
-        )
+        event = _last_event(mock_dependencies)
+        assert event.type == EventType.GAME_QUIT
+        assert event.data == {'reason': 'keyboard_interrupt'}
