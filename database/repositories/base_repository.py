@@ -41,6 +41,9 @@ class BaseRepository(Generic[T]):
             raise ValueError("table_name is required")
             
         self.db_manager = db_manager
+        # Alias used by several repositories (game, naive_bayes, q_learning, mcts)
+        # that reference ``self.db`` instead of ``self.db_manager``.
+        self.db = db_manager
         self.table_name = table_name
         self.logger = logging.getLogger(self.__class__.__name__)
         

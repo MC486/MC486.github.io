@@ -35,6 +35,7 @@ class RepositoryManager:
             'mcts': timedelta(hours=12),  # Clean MCTS data every 12 hours
             'q_learning': timedelta(hours=12),  # Clean Q-learning data every 12 hours
             'markov_chain': timedelta(hours=12),  # Clean Markov Chain data every 12 hours
+            'game': timedelta(hours=24),  # Clean game repository daily
         }
         
         # Initialize all repositories
