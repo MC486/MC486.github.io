@@ -68,15 +68,11 @@ class AIStrategy:
         self.mcts_repository = self.db_manager.get_mcts_repository()
         self.q_learning_repository = self.db_manager.get_q_learning_repository(self.game_id)
         
-        # Seed the analyzer with a real vocabulary of common, valid English
-        # words so the models can actually generate valid words. Previously it
-        # was seeded with an empty list, so the Markov model had no transitions
-        # and the AI never produced a suggestion.
-        self.vocabulary = self._load_seed_vocabulary()
-        self.word_analyzer.analyze_word_list(self.vocabulary)
+        # Start the analyzer empty so model construction (which may load
+        # per-word data from the repository) stays cheap and side-effect free.
+        self.word_analyzer.analyze_word_list([])
         
-        # Initialize AI components. The Markov model builds its transition
-        # matrix from the analyzer's (now populated) vocabulary on construction.
+        # Initialize AI components.
         self.markov_chain = MarkovChain(
             event_manager=self.event_manager,
             word_analyzer=self.word_analyzer,
@@ -84,8 +80,6 @@ class AIStrategy:
             markov_repository=self.markov_repository,
             order=2
         )
-        self.markov_chain.is_trained = True
-        
         self.mcts = MCTS(
             valid_words=self.word_analyzer.get_analyzed_words(),
             max_depth=5,
@@ -102,6 +96,15 @@ class AIStrategy:
             word_analyzer=self.word_analyzer,
             repository=self.q_learning_repository
         )
+        
+        # Seed a real vocabulary of common, valid English words so the models
+        # can actually generate valid words (previously the analyzer was seeded
+        # with an empty list, so the Markov model had no transitions and the AI
+        # never produced a suggestion). Rebuild the Markov matrix from it.
+        self.vocabulary = self._load_seed_vocabulary()
+        self.word_analyzer.analyze_word_list(self.vocabulary)
+        self.markov_chain._build_transition_matrix()
+        self.markov_chain.is_trained = True
         
         # Initialize AI components
         self.models = {
@@ -339,22 +342,25 @@ class AIStrategy:
         """Generate candidate words the AI could actually play."""
         candidates = set()
 
-        # Primary source: real vocabulary words formable from the available
-        # letters. Keep the higher-value (longer) ones to bound the work.
-        formable = self._formable_words(available_letters)
-        formable.sort(key=len, reverse=True)
-        candidates.update(formable[:50])
-
-        # Also let any model that supports suggestions contribute.
+        # Let any model that supports suggestions contribute. If a model has
+        # (near-)deterministic weight, defer to its suggestion directly.
         for model_name, model in self.models.items():
             if hasattr(model, "get_suggestion"):
                 try:
                     word, _ = model.get_suggestion(available_letters)
                     if word and self.word_validator.validate_word_with_letters(word, available_letters):
                         candidates.add(word.upper())
+                        if self.model_weights[model_name] >= 0.99:  # 0.99 for float imprecision
+                            return {word.upper()}
                 except Exception as e:
                     logger.warning(f"Error getting suggestion from {model_name}: {e}")
                     continue
+
+        # Primary source: real vocabulary words formable from the available
+        # letters. Keep the higher-value (longer) ones to bound the work.
+        formable = self._formable_words(available_letters)
+        formable.sort(key=len, reverse=True)
+        candidates.update(formable[:50])
 
         return candidates
     
