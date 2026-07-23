@@ -49,6 +49,10 @@ class GameRepository(BaseRepository):
         if score is not None:
             query += ", score = ?"
             params.append(score)
+        
+        # Stamp the end time once the game reaches a terminal status.
+        if status in ("completed", "abandoned"):
+            query += ", end_time = CURRENT_TIMESTAMP"
             
         query += " WHERE id = ?"
         params.append(game_id)

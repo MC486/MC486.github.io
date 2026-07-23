@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS games (
     difficulty TEXT NOT NULL DEFAULT 'medium' CHECK (difficulty IN ('easy', 'medium', 'hard')),
     max_attempts INTEGER NOT NULL DEFAULT 10 CHECK (max_attempts > 0),
     status TEXT NOT NULL DEFAULT 'in_progress' CHECK (status IN ('in_progress', 'completed', 'abandoned')),
-    game_score INTEGER DEFAULT 0,
+    score INTEGER DEFAULT 0,
     end_time TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

@@ -23,6 +23,17 @@ class TestBaseRepository(unittest.TestCase):
         # Initialize database manager with the temporary file
         self.db_manager = DatabaseManager(self.db_path)
         
+        # Create the generic table the BaseRepository operates on.
+        self.db_manager.execute("""
+            CREATE TABLE IF NOT EXISTS test_table (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                word TEXT,
+                category_id INTEGER,
+                frequency INTEGER,
+                allowed BOOLEAN
+            )
+        """)
+        
         # Create BaseRepository instance with required parameters
         self.repository = BaseRepository(
             db_manager=self.db_manager,
