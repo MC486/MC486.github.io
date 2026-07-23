@@ -266,10 +266,10 @@ class DatabaseManager:
         from .repositories.mcts_repository import MCTSRepository
         return MCTSRepository(self)
         
-    def get_q_learning_repository(self):
+    def get_q_learning_repository(self, game_id: Optional[int] = None):
         """Get the Q-Learning repository instance."""
         from .repositories.q_learning_repository import QLearningRepository
-        return QLearningRepository(self)
+        return QLearningRepository(self, game_id)
         
     def get_naive_bayes_repository(self):
         """Get the Naive Bayes repository instance."""

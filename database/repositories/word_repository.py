@@ -79,17 +79,22 @@ class WordRepository(BaseRepository):
         query = "SELECT COUNT(*) FROM words"
         return self.db_manager.get_scalar(query) or 0
 
-    def add_word(self, word: str, category_id: int) -> int:
+    def add_word(self, word: str, category_id: Optional[int] = None) -> int:
         """
-        Add a word to a category.
+        Add a word (optionally to a category). Words are unique, so if the
+        word already exists its existing id is returned instead of inserting
+        a duplicate.
         
         Args:
             word: The word to add
-            category_id: ID of the category
+            category_id: Optional ID of the category
             
         Returns:
-            ID of the created word
+            ID of the created (or existing) word
         """
+        existing = self.get_by_word(word)
+        if existing:
+            return existing['id']
         data = {
             'word': word,
             'category_id': category_id,
