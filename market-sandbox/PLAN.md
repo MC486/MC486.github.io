@@ -5,6 +5,12 @@ origin project, and the phased roadmap with success criteria. This exists so we
 plan and verify in thin vertical slices instead of stacking unverified layers
 (the lesson from the word-game capstone).
 
+> **Building it?** Read [`docs/BUILD_SPEC.md`](docs/BUILD_SPEC.md) — the
+> execution-ready hand-off with current-state inventory, exact interface
+> contracts, the origin→sandbox port map, and per-task acceptance tests. Any
+> agent/engineer should be able to continue from the current point using it
+> alone.
+
 > Scope: a **paper-trading / research simulation**. No real orders, no financial
 > advice. The goal is a rigorous, honest framework + analysis — not a money printer.
 
