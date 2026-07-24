@@ -276,7 +276,7 @@ class DatabaseManager:
         from .repositories.naive_bayes_repository import NaiveBayesRepository
         return NaiveBayesRepository(self)
         
-    def get_markov_repository(self, game_id: int):
+    def get_markov_repository(self, game_id: Optional[int] = None):
         """Get the Markov Chain repository instance."""
         from .repositories.markov_repository import MarkovRepository
         return MarkovRepository(self, game_id)

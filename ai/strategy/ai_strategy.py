@@ -52,8 +52,17 @@ class AIStrategy:
             category_repo=category_repo
         )
         
+        # Create a game record so repositories with a game_id foreign key
+        # (e.g. Markov transitions) have a valid game to attach to.
+        self.game_repository = self.db_manager.get_game_repository()
+        self.game_id = self.game_repository.create_game(
+            player_name="ai_player",
+            difficulty=self.difficulty,
+            max_attempts=10
+        )
+
         # Get repositories
-        self.markov_repository = self.db_manager.get_markov_repository()
+        self.markov_repository = self.db_manager.get_markov_repository(self.game_id)
         self.naive_bayes_repository = self.db_manager.get_naive_bayes_repository()
         self.mcts_repository = self.db_manager.get_mcts_repository()
         self.q_learning_repository = self.db_manager.get_q_learning_repository()
@@ -331,7 +340,7 @@ class AIStrategy:
             },
             'q_learning': {
                 'state_count': len(self.q_agent.q_table),
-                'exploration_rate': self.q_agent.exploration_rate
+                'exploration_rate': self.q_agent.epsilon
             }
         }
         return stats

@@ -8,8 +8,7 @@ class NaiveBayesRepository(BaseRepository):
     
     def __init__(self, db_manager):
         """Initialize the Naive Bayes repository."""
-        super().__init__(db_manager)
-        self.table_name = "naive_bayes"
+        super().__init__(db_manager, "naive_bayes")
         
         # Create naive_bayes_words table if it doesn't exist
         self.db.execute_query("""

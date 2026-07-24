@@ -68,7 +68,7 @@ class MCTSRepository(BaseRepository):
         self.db_manager.execute(
             """
             DELETE FROM mcts_states
-            WHERE last_updated < datetime('now', ?)
+            WHERE updated_at < datetime('now', ?)
             """,
             (f"-{max_age_days} days",)
         )
