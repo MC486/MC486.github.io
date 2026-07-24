@@ -1,0 +1,13 @@
+# Core
+numpy>=1.24
+pandas>=2.0
+pyyaml>=6.0
+
+# Plotting (equity-curve artifacts)
+matplotlib>=3.7
+
+# Optional real market data (falls back to synthetic if unavailable)
+yfinance>=0.2.40
+
+# Testing
+pytest>=7.4
